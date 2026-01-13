@@ -11,17 +11,18 @@ A Discord bot for tracking unit activity with shift logging, quota management, a
 - **Reports**: Generate unit-wide activity reports with quota status
 - **Supervisor Tools**: Edit/delete shifts with audit logging
 - **Quota Management**: Reset quotas per user, unit, or all at once
-- **Permission System**: Configurable role-based permissions (Command, Supervisor)
+- **Permission System**: Three-tier role-based permissions (Command, Supervisor, Employee)
 - **Auto-end Shifts**: Optional auto-end for shifts exceeding maximum duration
 
 ## Commands
 
-### User Commands
-- `/start_shift [picture_link]` - Start your patrol shift
-- `/end_shift [picture_link]` - End your patrol shift
-- `/check_activity [user]` - Check activity logs (yours or another user's)
+### Employee Commands (Basic Access)
+- `/start_shift [picture_link]` - Start your patrol shift (requires Employee role)
+- `/end_shift [picture_link]` - End your patrol shift (requires Employee role)
+- `/check_activity [user]` - Check your own activity logs (employees can only view their own)
 
-### Supervisor Commands
+### Supervisor Commands (Includes Employee Access)
+- `/check_activity [user]` - Check activity logs for any user
 - `/activity_report [unit_role]` - Generate activity report for a unit
 - `/edit_shift [shift_id] [new_minutes] [reason]` - Edit shift duration
 - `/delete_shift [shift_id] [reason]` - Delete a shift record
@@ -80,6 +81,9 @@ A Discord bot for tracking unit activity with shift logging, quota management, a
        },
        "supervisor": {
          "Supervisor": "DISCORD_ROLE_ID_HERE"
+       },
+       "employee": {
+         "Kaslo Police Department": "DISCORD_ROLE_ID_HERE"
        }
      },
      "unitRoles": {
@@ -149,9 +153,15 @@ A Discord bot for tracking unit activity with shift logging, quota management, a
    - Right-click roles → Copy ID
 
 2. **Add to config.json**
-   - Add Command roles under `permissions.command`
-   - Add Supervisor roles under `permissions.supervisor`
+   - Add Command roles under `permissions.command` (full admin access)
+   - Add Supervisor roles under `permissions.supervisor` (can edit/delete shifts, view reports)
+   - Add Employee roles under `permissions.employee` (can start/end shifts, view own activity)
    - Add Unit roles under `unitRoles` (can have multiple role IDs per unit)
+
+**Permission Hierarchy:**
+- Command roles automatically have Supervisor and Employee permissions
+- Supervisor roles automatically have Employee permissions
+- Employee roles only have basic shift management access
 
 ### Quota Cycle Configuration
 
@@ -225,8 +235,10 @@ discord-activity-bot/
 ### Permission errors
 - Verify role IDs in `config/config.json` are correct
 - Check that users have the appropriate roles assigned
-- Command permissions: Only Command roles can use admin commands
-- Supervisor permissions: Supervisors + Command roles can edit/delete shifts
+- Employee permissions: Only employees (or higher) can start/end shifts
+- Employees can only check their own activity, not other users
+- Supervisor permissions: Supervisors + Command roles can edit/delete shifts and view all activity
+- Command permissions: Only Command roles can use admin commands (set/reset quotas)
 
 ### Active shifts embed not updating
 - Verify `ACTIVE_SHIFTS_CHANNEL_ID` is set correctly

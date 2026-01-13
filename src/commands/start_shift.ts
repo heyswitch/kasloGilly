@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember } from 'discord.js';
-import { getUserUnitRoles } from '../config';
+import { getUserUnitRoles, hasEmployeePermission } from '../config';
 import { getActiveShiftForUser, startShift, getActiveQuotaCycle } from '../database/database';
 import { isValidUrl } from '../utils/timeFormatter';
 import { logShiftStart } from '../services/shiftLogger';
@@ -21,13 +21,18 @@ module.exports = {
     const pictureLink = interaction.options.getString('picture_link', true);
     const member = interaction.member as GuildMember;
 
+    // Check employee permissions
+    const memberRoleIds = member.roles.cache.map(role => role.id);
+    if (!hasEmployeePermission(memberRoleIds)) {
+      return interaction.editReply('❌ You do not have permission to use this command. Only employees of the department can start shifts.');
+    }
+
     // Validate picture link
     if (!isValidUrl(pictureLink)) {
       return interaction.editReply('❌ Invalid picture link. Please provide a valid URL.');
     }
 
     // Get user's unit roles
-    const memberRoleIds = member.roles.cache.map(role => role.id);
     const unitRoles = getUserUnitRoles(memberRoleIds);
 
     if (unitRoles.length === 0) {

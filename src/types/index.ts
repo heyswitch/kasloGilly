@@ -2,6 +2,7 @@ export interface Config {
   permissions: {
     command: Record<string, string>;
     supervisor: Record<string, string>;
+    employee: Record<string, string>;
   };
   unitRoles: Record<string, string[]>;
   quotas: {

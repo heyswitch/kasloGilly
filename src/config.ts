@@ -73,6 +73,16 @@ export function hasSupervisorPermission(roleIds: string[]): boolean {
   );
 }
 
+export function hasEmployeePermission(roleIds: string[]): boolean {
+  const cfg = getConfig();
+  const employeeRoleIds = Object.values(cfg.permissions.employee);
+  const supervisorRoleIds = Object.values(cfg.permissions.supervisor);
+  const commandRoleIds = Object.values(cfg.permissions.command);
+  return roleIds.some(roleId =>
+    employeeRoleIds.includes(roleId) || supervisorRoleIds.includes(roleId) || commandRoleIds.includes(roleId)
+  );
+}
+
 export function getUserUnitRoles(roleIds: string[]): string[] {
   const cfg = getConfig();
   const units: string[] = [];

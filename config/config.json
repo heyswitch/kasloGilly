@@ -9,6 +9,9 @@
       "Supervisor": "DISCORD_ROLE_ID_HERE",
       "Senior Supervisor": "DISCORD_ROLE_ID_HERE",
       "Shift Commander": "DISCORD_ROLE_ID_HERE"
+    },
+    "employee": {
+      "Kaslo Police Department": "DISCORD_ROLE_ID_HERE"
     }
   },
   "unitRoles": {

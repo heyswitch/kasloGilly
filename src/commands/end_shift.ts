@@ -1,4 +1,5 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember } from 'discord.js';
+import { hasEmployeePermission } from '../config';
 import { getActiveShiftForUser, endShift } from '../database/database';
 import { isValidUrl } from '../utils/timeFormatter';
 import { logShiftEnd } from '../services/shiftLogger';
@@ -18,6 +19,13 @@ module.exports = {
     await interaction.deferReply({ ephemeral: true });
 
     const pictureLink = interaction.options.getString('picture_link', true);
+    const member = interaction.member as GuildMember;
+
+    // Check employee permissions
+    const memberRoleIds = member.roles.cache.map(role => role.id);
+    if (!hasEmployeePermission(memberRoleIds)) {
+      return interaction.editReply('❌ You do not have permission to use this command. Only employees of the department can end shifts.');
+    }
 
     // Validate picture link
     if (!isValidUrl(pictureLink)) {

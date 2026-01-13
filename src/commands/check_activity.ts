@@ -1,7 +1,7 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, GuildMember } from 'discord.js';
 import { getUserShiftsInCycle, getActiveQuotaCycle, getTotalMinutesForUserInCycle } from '../database/database';
 import { formatDuration, formatShortTimestamp, formatDateForCycleEnd } from '../utils/timeFormatter';
-import { getQuotaForUnit, getNextQuotaCycleEnd } from '../config';
+import { getQuotaForUnit, getNextQuotaCycleEnd, hasEmployeePermission, hasSupervisorPermission } from '../config';
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -17,7 +17,21 @@ module.exports = {
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ ephemeral: true });
 
+    const member = interaction.member as GuildMember;
+    const memberRoleIds = member.roles.cache.map(role => role.id);
+
+    // Check employee permissions
+    if (!hasEmployeePermission(memberRoleIds)) {
+      return interaction.editReply('❌ You do not have permission to use this command. Only employees of the department can check activity.');
+    }
+
     const targetUser = interaction.options.getUser('user') || interaction.user;
+
+    // If user is not a supervisor, they can only check their own activity
+    if (!hasSupervisorPermission(memberRoleIds) && targetUser.id !== interaction.user.id) {
+      return interaction.editReply('❌ You can only check your own activity. Supervisors can check other users\' activity.');
+    }
+
     const activeQuotaCycle = getActiveQuotaCycle();
 
     if (!activeQuotaCycle) {

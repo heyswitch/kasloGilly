@@ -67,21 +67,10 @@ module.exports = {
     // Get all shifts for this unit
     const shifts = getUnitShiftsInCycle(unitRole, activeQuotaCycle.id);
 
-    if (shifts.length === 0) {
-      await interaction.editReply(`📊 No activity data found for **${unitRole}** in the current cycle.`);
-      setTimeout(async () => {
-        try {
-          await interaction.deleteReply();
-        } catch (error) {
-          // Ignore if message was already deleted
-        }
-      }, 10000);
-      return;
-    }
-
     // Group shifts by user
     const userStats = new Map<string, UserQuotaStats>();
 
+    // First, add users who have shifts
     for (const shift of shifts) {
       if (!userStats.has(shift.userId)) {
         const totalMinutes = getTotalMinutesForUserInCycle(shift.userId, activeQuotaCycle.id);
@@ -99,8 +88,48 @@ module.exports = {
       }
     }
 
+    // Then, add all members with this unit role (even if they have no shifts)
+    const unitRoleIds = config.unitRoles[unitRole];
+    if (unitRoleIds && interaction.guild) {
+      // Fetch all members to ensure we have the complete list
+      await interaction.guild.members.fetch();
+
+      for (const [memberId, member] of interaction.guild.members.cache) {
+        // Check if member has any of the unit role IDs
+        const hasUnitRole = unitRoleIds.some(roleId => member.roles.cache.has(roleId));
+
+        if (hasUnitRole && !userStats.has(memberId)) {
+          const totalMinutes = getTotalMinutesForUserInCycle(memberId, activeQuotaCycle.id);
+          const quotaMinutes = getQuotaForUnit(unitRole);
+
+          userStats.set(memberId, {
+            userId: memberId,
+            username: member.user.username,
+            unitRole: unitRole,
+            totalMinutes,
+            quotaMinutes,
+            quotaMet: totalMinutes >= quotaMinutes,
+            shifts: []
+          });
+        }
+      }
+    }
+
     // Sort by total minutes (descending)
     const sortedStats = Array.from(userStats.values()).sort((a, b) => b.totalMinutes - a.totalMinutes);
+
+    // If no users found at all
+    if (sortedStats.length === 0) {
+      await interaction.editReply(`📊 No users found with the **${unitRole}** role.`);
+      setTimeout(async () => {
+        try {
+          await interaction.deleteReply();
+        } catch (error) {
+          // Ignore if message was already deleted
+        }
+      }, 10000);
+      return;
+    }
 
     // Calculate statistics
     const totalUsers = sortedStats.length;

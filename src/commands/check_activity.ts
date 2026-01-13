@@ -68,9 +68,23 @@ module.exports = {
     // Add shift history (last 10 shifts)
     const recentShifts = shifts.slice(0, 10);
     const shiftHistory = recentShifts.map((shift, index) => {
-      const status = shift.isActive ? '🟢 Active' : '🔴 Ended';
-      const duration = shift.durationMinutes ? formatDuration(shift.durationMinutes) : 'In Progress';
-      return `${index + 1}. ${status} - ${formatShortTimestamp(shift.startTime)} - **${duration}**`;
+      // Determine accurate status
+      let status: string;
+      let duration: string;
+
+      if (shift.isActive) {
+        status = '🟢 Active';
+        duration = 'In Progress';
+      } else if (shift.durationMinutes !== null && shift.durationMinutes !== undefined) {
+        status = '🔴 Ended';
+        duration = formatDuration(shift.durationMinutes);
+      } else {
+        // Handle edge case: shift marked as inactive but no duration calculated
+        status = '⚠️ Ended (No Duration)';
+        duration = 'Error';
+      }
+
+      return `${index + 1}. ${status} - ${formatShortTimestamp(shift.startTime)} - **${duration}** (Code: ${shift.shiftCode})`;
     }).join('\n');
 
     embed.addFields({ name: `Recent Shifts (${shifts.length} total)`, value: shiftHistory || 'None', inline: false });

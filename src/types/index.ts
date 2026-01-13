@@ -28,6 +28,7 @@ export interface Config {
 
 export interface Shift {
   id: number;
+  shiftCode: string; // Cryptographically secure random ID
   userId: string;
   username: string;
   unitRole: string;

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm start)",
+      "Bash(npm run build:*)",
+      "Bash(node migrate_add_shift_codes.js:*)",
+      "Bash(sqlite3:*)"
+    ]
+  }
+}

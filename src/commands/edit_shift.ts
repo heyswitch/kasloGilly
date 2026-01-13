@@ -1,18 +1,17 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember } from 'discord.js';
 import { hasSupervisorPermission } from '../config';
-import { updateShiftDuration, addAuditLog } from '../database/database';
+import { updateShiftDurationByCode, getShiftByCode, addAuditLog } from '../database/database';
 import { logAuditAction } from '../services/shiftLogger';
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('edit_shift')
     .setDescription('Edit shift duration (Supervisor role only)')
-    .addIntegerOption(option =>
+    .addStringOption(option =>
       option
-        .setName('shift_id')
-        .setDescription('The shift ID to edit')
+        .setName('shift_code')
+        .setDescription('The shift code to edit (e.g., ABC12345)')
         .setRequired(true)
-        .setMinValue(1)
     )
     .addIntegerOption(option =>
       option
@@ -39,29 +38,35 @@ module.exports = {
       return interaction.editReply('❌ You do not have permission to use this command. Only supervisors can edit shifts.');
     }
 
-    const shiftId = interaction.options.getInteger('shift_id', true);
+    const shiftCode = interaction.options.getString('shift_code', true).toUpperCase();
     const newMinutes = interaction.options.getInteger('new_minutes', true);
     const reason = interaction.options.getString('reason') || 'No reason provided';
 
+    // Verify shift exists
+    const shift = getShiftByCode(shiftCode);
+    if (!shift) {
+      return interaction.editReply(`❌ No shift found with code **${shiftCode}**. Please check the shift code and try again.`);
+    }
+
     // Update shift
-    const success = updateShiftDuration(shiftId, newMinutes);
+    const success = updateShiftDurationByCode(shiftCode, newMinutes);
 
     if (!success) {
-      return interaction.editReply('❌ Failed to update shift. Please check the shift ID and try again.');
+      return interaction.editReply('❌ Failed to update shift. Please try again.');
     }
 
     // Log audit
-    const details = `Edited shift #${shiftId} - New duration: ${newMinutes} minutes - Reason: ${reason}`;
+    const details = `Edited shift ${shiftCode} (User: ${shift.username}) - New duration: ${newMinutes} minutes - Reason: ${reason}`;
     addAuditLog(
       interaction.user.id,
       interaction.user.username,
       'EDIT_SHIFT',
-      null,
+      shift.userId,
       details
     );
 
     await logAuditAction(interaction.client, interaction.user.username, 'EDIT_SHIFT', details);
 
-    return interaction.editReply(`✅ Successfully updated shift #${shiftId} to **${newMinutes} minutes**.\n\n**Reason:** ${reason}`);
+    return interaction.editReply(`✅ Successfully updated shift **${shiftCode}** to **${newMinutes} minutes**.\n\n**User:** ${shift.username}\n**Reason:** ${reason}`);
   },
 };

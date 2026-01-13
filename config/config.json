@@ -1,21 +1,21 @@
 {
   "permissions": {
     "command": {
-      "Chief": "DISCORD_ROLE_ID_HERE",
+      "Chief": "1403424744019198002",
       "Deputy Chief": "DISCORD_ROLE_ID_HERE",
       "Assistant Chief": "DISCORD_ROLE_ID_HERE"
     },
     "supervisor": {
-      "Supervisor": "DISCORD_ROLE_ID_HERE",
+      "Supervisor": "1403424744019198002",
       "Senior Supervisor": "DISCORD_ROLE_ID_HERE",
       "Shift Commander": "DISCORD_ROLE_ID_HERE"
     },
     "employee": {
-      "Kaslo Police Department": "DISCORD_ROLE_ID_HERE"
+      "Kaslo Police Department": "1403424744019198002"
     }
   },
   "unitRoles": {
-    "Patrol Unit": ["DISCORD_ROLE_ID_1", "DISCORD_ROLE_ID_2"],
+    "Patrol Unit": ["1403424744019198002", "DISCORD_ROLE_ID_2"],
     "Training Unit": ["DISCORD_ROLE_ID_3"],
     "SWAT": ["DISCORD_ROLE_ID_4"],
     "Traffic Unit": ["DISCORD_ROLE_ID_5"]

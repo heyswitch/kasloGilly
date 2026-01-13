@@ -1,8 +1,21 @@
 import Database from 'better-sqlite3';
 import { join } from 'path';
+import { randomBytes } from 'crypto';
 import { Shift, QuotaCycle, AuditLog } from '../types';
 
 let db: Database.Database;
+
+/**
+ * Generates a cryptographically secure random shift code
+ * Format: 8 characters, alphanumeric (uppercase), ~2.8 trillion possible combinations
+ */
+function generateShiftCode(): string {
+  const bytes = randomBytes(6);
+  return bytes.toString('base64')
+    .replace(/[+/=]/g, '') // Remove special chars
+    .substring(0, 8)
+    .toUpperCase();
+}
 
 export function initDatabase(): void {
   const dbPath = join(__dirname, '../../database/activity.db');
@@ -19,6 +32,7 @@ export function initDatabase(): void {
 
     CREATE TABLE IF NOT EXISTS shifts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      shift_code TEXT NOT NULL UNIQUE,
       user_id TEXT NOT NULL,
       username TEXT NOT NULL,
       unit_role TEXT NOT NULL,
@@ -45,6 +59,7 @@ export function initDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_shifts_user_id ON shifts(user_id);
     CREATE INDEX IF NOT EXISTS idx_shifts_quota_cycle ON shifts(quota_cycle_id);
     CREATE INDEX IF NOT EXISTS idx_shifts_active ON shifts(is_active);
+    CREATE INDEX IF NOT EXISTS idx_shifts_code ON shifts(shift_code);
     CREATE INDEX IF NOT EXISTS idx_quota_cycles_active ON quota_cycles(is_active);
   `);
 
@@ -104,14 +119,16 @@ export function startShift(
   quotaCycleId: number
 ): Shift {
   const startTime = Date.now();
+  const shiftCode = generateShiftCode();
 
   const result = db.prepare(`
-    INSERT INTO shifts (user_id, username, unit_role, start_time, start_picture_link, quota_cycle_id, is_active)
-    VALUES (?, ?, ?, ?, ?, ?, 1)
-  `).run(userId, username, unitRole, startTime, pictureLink, quotaCycleId);
+    INSERT INTO shifts (shift_code, user_id, username, unit_role, start_time, start_picture_link, quota_cycle_id, is_active)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+  `).run(shiftCode, userId, username, unitRole, startTime, pictureLink, quotaCycleId);
 
   return {
     id: result.lastInsertRowid as number,
+    shiftCode,
     userId,
     username,
     unitRole,
@@ -140,6 +157,7 @@ export function endShift(shiftId: number, endPictureLink: string): Shift | null 
 
   return {
     id: shift.id,
+    shiftCode: shift.shift_code,
     userId: shift.user_id,
     username: shift.username,
     unitRole: shift.unit_role,
@@ -159,6 +177,7 @@ export function getActiveShiftForUser(userId: string): Shift | null {
 
   return {
     id: row.id,
+    shiftCode: row.shift_code,
     userId: row.user_id,
     username: row.username,
     unitRole: row.unit_role,
@@ -177,6 +196,7 @@ export function getAllActiveShifts(): Shift[] {
 
   return rows.map(row => ({
     id: row.id,
+    shiftCode: row.shift_code,
     userId: row.user_id,
     username: row.username,
     unitRole: row.unit_role,
@@ -199,6 +219,7 @@ export function getUserShiftsInCycle(userId: string, quotaCycleId: number): Shif
 
   return rows.map(row => ({
     id: row.id,
+    shiftCode: row.shift_code,
     userId: row.user_id,
     username: row.username,
     unitRole: row.unit_role,
@@ -221,6 +242,7 @@ export function getUnitShiftsInCycle(unitRole: string, quotaCycleId: number): Sh
 
   return rows.map(row => ({
     id: row.id,
+    shiftCode: row.shift_code,
     userId: row.user_id,
     username: row.username,
     unitRole: row.unit_role,
@@ -234,6 +256,26 @@ export function getUnitShiftsInCycle(unitRole: string, quotaCycleId: number): Sh
   }));
 }
 
+export function getShiftByCode(shiftCode: string): Shift | null {
+  const row = db.prepare('SELECT * FROM shifts WHERE shift_code = ?').get(shiftCode.toUpperCase()) as any;
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    shiftCode: row.shift_code,
+    userId: row.user_id,
+    username: row.username,
+    unitRole: row.unit_role,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    durationMinutes: row.duration_minutes,
+    startPictureLink: row.start_picture_link,
+    endPictureLink: row.end_picture_link,
+    quotaCycleId: row.quota_cycle_id,
+    isActive: row.is_active === 1
+  };
+}
+
 export function updateShiftDuration(shiftId: number, newDurationMinutes: number): boolean {
   const result = db.prepare(`
     UPDATE shifts
@@ -244,8 +286,23 @@ export function updateShiftDuration(shiftId: number, newDurationMinutes: number)
   return result.changes > 0;
 }
 
+export function updateShiftDurationByCode(shiftCode: string, newDurationMinutes: number): boolean {
+  const result = db.prepare(`
+    UPDATE shifts
+    SET duration_minutes = ?
+    WHERE shift_code = ?
+  `).run(newDurationMinutes, shiftCode.toUpperCase());
+
+  return result.changes > 0;
+}
+
 export function deleteShift(shiftId: number): boolean {
   const result = db.prepare('DELETE FROM shifts WHERE id = ?').run(shiftId);
+  return result.changes > 0;
+}
+
+export function deleteShiftByCode(shiftCode: string): boolean {
+  const result = db.prepare('DELETE FROM shifts WHERE shift_code = ?').run(shiftCode.toUpperCase());
   return result.changes > 0;
 }
 

@@ -16,14 +16,23 @@ module.exports = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ ephemeral: false });
 
     const member = interaction.member as GuildMember;
     const memberRoleIds = member.roles.cache.map(role => role.id);
 
     // Check supervisor permissions
     if (!hasSupervisorPermission(memberRoleIds)) {
-      return interaction.editReply('❌ You do not have permission to use this command. Only supervisors can view activity reports.');
+      await interaction.editReply('❌ You do not have permission to use this command. Only supervisors can view activity reports.');
+      // Delete the error message after 5 seconds to keep channel clean
+      setTimeout(async () => {
+        try {
+          await interaction.deleteReply();
+        } catch (error) {
+          // Ignore if message was already deleted
+        }
+      }, 5000);
+      return;
     }
 
     const unitRole = interaction.options.getString('unit_role', true);
@@ -31,19 +40,43 @@ module.exports = {
 
     // Validate unit role
     if (!config.unitRoles[unitRole]) {
-      return interaction.editReply(`❌ Invalid unit role. Available units: ${Object.keys(config.unitRoles).join(', ')}`);
+      await interaction.editReply(`❌ Invalid unit role. Available units: ${Object.keys(config.unitRoles).join(', ')}`);
+      setTimeout(async () => {
+        try {
+          await interaction.deleteReply();
+        } catch (error) {
+          // Ignore if message was already deleted
+        }
+      }, 10000);
+      return;
     }
 
     const activeQuotaCycle = getActiveQuotaCycle();
     if (!activeQuotaCycle) {
-      return interaction.editReply('❌ No active quota cycle found.');
+      await interaction.editReply('❌ No active quota cycle found.');
+      setTimeout(async () => {
+        try {
+          await interaction.deleteReply();
+        } catch (error) {
+          // Ignore if message was already deleted
+        }
+      }, 5000);
+      return;
     }
 
     // Get all shifts for this unit
     const shifts = getUnitShiftsInCycle(unitRole, activeQuotaCycle.id);
 
     if (shifts.length === 0) {
-      return interaction.editReply(`📊 No activity data found for **${unitRole}** in the current cycle.`);
+      await interaction.editReply(`📊 No activity data found for **${unitRole}** in the current cycle.`);
+      setTimeout(async () => {
+        try {
+          await interaction.deleteReply();
+        } catch (error) {
+          // Ignore if message was already deleted
+        }
+      }, 10000);
+      return;
     }
 
     // Group shifts by user

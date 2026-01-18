@@ -1,0 +1,107 @@
+{
+  "name": "Harrison County Transit Authority",
+  "permissions": {
+    "command": {
+      "Director": "1010761786171080815",
+      "Assistant Director": "1010761956103299132",
+      "Division Chief": "1028351164217041007"
+    },
+    "supervisor": {
+      "Assistant Division Chief": "1462188359383384216"
+    },
+    "employee": {
+      "Transit Authority": "1030838726248636496"
+    }
+  },
+  "unitRoles": {
+    "Public Transportation Division": [
+      "1406603629745672252"
+    ],
+    "Bus Fleet A": [
+      "1406603630806831156"
+    ],
+    "Bus Fleet B": [
+      "1406603631255359498"
+    ],
+    "Bus Fleet C": [
+      "1406603628608749658"
+    ],
+    "Travel Safety Division": [
+      "1406603632207597691"
+    ],
+    "Safety Unit A": [
+      "1406603721558855820"
+    ],
+    "Safety Unit B": [
+      "1406603722733260901"
+    ],
+    "Incident Response Unit": [
+      "1406603722104242257"
+    ],
+    "Road Maintenance Division": [
+      "1406603723114938469"
+    ],
+    "Maintenance Unit A": [
+      "1406603729490411631"
+    ],
+    "Maintenance Unit B": [
+      "1406603729720971325"
+    ],
+    "Transportation Academy Division": [
+      "1406602121461239828"
+    ],
+    "Training and Development Unit": [
+      "1406603159748743250"
+    ],
+    "Administrative Services": [
+      "1406602123541610517"
+    ],
+    "Professional Standards Unit": [
+      "1406601646410305680"
+    ],
+    "Public Information Unit": [
+      "1406602122337980486"
+    ]
+  },
+  "quotas": {
+    "defaultMinutes": 60,
+    "unitQuotas": {
+      "Public Transportation Division": 60,
+      "Bus Fleet A": 60,
+      "Bus Fleet B": 60,
+      "Bus Fleet C": 60,
+      "Travel Safety Division": 60,
+      "Safety Unit A": 60,
+      "Safety Unit B": 60,
+      "Incident Response Unit": 60,
+      "Road Maintenance Division": 60,
+      "Maintenance Unit A": 60,
+      "Maintenance Unit B": 60,
+      "Transportation Academy Division": 60,
+      "Training and Development Unit": 60,
+      "Administrative Services": 60,
+      "Professional Standards Unit": 60,
+      "Public Information Unit": 60
+    }
+  },
+  "quotaCycle": {
+    "dayOfWeek": 0,
+    "hour": 23,
+    "minute": 59,
+    "second": 0,
+    "timezone": "America/New_York"
+  },
+  "shifts": {
+    "autoEndAfterHours": 10,
+    "autoEndEnabled": false
+  },
+  "notifications": {
+    "quotaWarningPercentage": 75,
+    "quotaReminderPercentage": 50
+  },
+  "channels": {
+    "shiftLog": "1010762602814648450",
+    "activeShifts": "1462234355790512198",
+    "auditLog": "1462233408905412652"
+  }
+}

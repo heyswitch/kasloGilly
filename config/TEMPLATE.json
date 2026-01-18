@@ -1,24 +1,25 @@
 {
+  "name": "Your Department Name",
   "permissions": {
     "command": {
-      "Chief": "1403424744019198002",
-      "Deputy Chief": "DISCORD_ROLE_ID_HERE",
-      "Assistant Chief": "DISCORD_ROLE_ID_HERE"
+      "Chief": "ROLE_ID_HERE",
+      "Deputy Chief": "ROLE_ID_HERE",
+      "Assistant Chief": "ROLE_ID_HERE"
     },
     "supervisor": {
-      "Supervisor": "1403424744019198002",
-      "Senior Supervisor": "DISCORD_ROLE_ID_HERE",
-      "Shift Commander": "DISCORD_ROLE_ID_HERE"
+      "Supervisor": "ROLE_ID_HERE",
+      "Senior Supervisor": "ROLE_ID_HERE",
+      "Shift Commander": "ROLE_ID_HERE"
     },
     "employee": {
-      "Kaslo Police Department": "1403424744019198002"
+      "Department Member": "ROLE_ID_HERE"
     }
   },
   "unitRoles": {
-    "Patrol Unit": ["1403424744019198002", "DISCORD_ROLE_ID_2"],
-    "Training Unit": ["DISCORD_ROLE_ID_3"],
-    "SWAT": ["DISCORD_ROLE_ID_4"],
-    "Traffic Unit": ["DISCORD_ROLE_ID_5"]
+    "Patrol Unit": ["ROLE_ID_1", "ROLE_ID_2"],
+    "Training Unit": ["ROLE_ID_3"],
+    "SWAT": ["ROLE_ID_4"],
+    "Traffic Unit": ["ROLE_ID_5"]
   },
   "quotas": {
     "defaultMinutes": 30,
@@ -43,5 +44,10 @@
   "notifications": {
     "quotaWarningPercentage": 75,
     "quotaReminderPercentage": 50
+  },
+  "channels": {
+    "shiftLog": "CHANNEL_ID_HERE",
+    "activeShifts": "CHANNEL_ID_HERE",
+    "auditLog": "CHANNEL_ID_HERE"
   }
 }

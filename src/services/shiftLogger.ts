@@ -2,11 +2,12 @@ import { Client, TextChannel, EmbedBuilder } from 'discord.js';
 import { Shift } from '../types';
 import { formatTimestamp, formatDuration } from '../utils/timeFormatter';
 import { getTotalMinutesForUserInCycle, getActiveQuotaCycle } from '../database/database';
-import { getQuotaForUnit, getNextQuotaCycleEnd } from '../config';
+import { getQuotaForUnit, getNextQuotaCycleEnd, getServerConfig } from '../config';
 import { formatDateForCycleEnd } from '../utils/timeFormatter';
 
-export async function logShiftStart(client: Client, shift: Shift): Promise<void> {
-  const channelId = process.env.SHIFT_LOG_CHANNEL_ID;
+export async function logShiftStart(client: Client, guildId: string, shift: Shift): Promise<void> {
+  const config = getServerConfig(guildId);
+  const channelId = config.channels.shiftLog;
   if (!channelId) return;
 
   try {
@@ -30,21 +31,22 @@ export async function logShiftStart(client: Client, shift: Shift): Promise<void>
   }
 }
 
-export async function logShiftEnd(client: Client, shift: Shift): Promise<void> {
-  const channelId = process.env.SHIFT_LOG_CHANNEL_ID;
+export async function logShiftEnd(client: Client, guildId: string, shift: Shift): Promise<void> {
+  const config = getServerConfig(guildId);
+  const channelId = config.channels.shiftLog;
   if (!channelId) return;
 
   try {
     const channel = await client.channels.fetch(channelId) as TextChannel;
     if (!channel) return;
 
-    const activeQuotaCycle = getActiveQuotaCycle();
+    const activeQuotaCycle = getActiveQuotaCycle(guildId);
     if (!activeQuotaCycle) return;
 
-    const totalMinutes = getTotalMinutesForUserInCycle(shift.userId, activeQuotaCycle.id);
-    const quotaMinutes = getQuotaForUnit(shift.unitRole);
+    const totalMinutes = getTotalMinutesForUserInCycle(guildId, shift.userId, activeQuotaCycle.id);
+    const quotaMinutes = getQuotaForUnit(shift.unitRole, guildId);
     const quotaMet = totalMinutes >= quotaMinutes;
-    const cycleEnd = getNextQuotaCycleEnd();
+    const cycleEnd = getNextQuotaCycleEnd(guildId);
 
     const embed = new EmbedBuilder()
       .setTitle('🔴 Shift Ended')
@@ -71,11 +73,13 @@ export async function logShiftEnd(client: Client, shift: Shift): Promise<void> {
 
 export async function logAuditAction(
   client: Client,
+  guildId: string,
   adminUsername: string,
   action: string,
   details: string
 ): Promise<void> {
-  const channelId = process.env.AUDIT_LOG_CHANNEL_ID;
+  const config = getServerConfig(guildId);
+  const channelId = config.channels.auditLog;
   if (!channelId) return;
 
   try {

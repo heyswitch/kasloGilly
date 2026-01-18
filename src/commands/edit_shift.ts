@@ -30,11 +30,16 @@ module.exports = {
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ ephemeral: true });
 
+    const guildId = interaction.guildId;
+    if (!guildId) {
+      return interaction.editReply('❌ This command can only be used in a server.');
+    }
+
     const member = interaction.member as GuildMember;
     const memberRoleIds = member.roles.cache.map(role => role.id);
 
     // Check supervisor permissions
-    if (!hasSupervisorPermission(memberRoleIds)) {
+    if (!hasSupervisorPermission(memberRoleIds, guildId)) {
       return interaction.editReply('❌ You do not have permission to use this command. Only supervisors can edit shifts.');
     }
 
@@ -43,13 +48,13 @@ module.exports = {
     const reason = interaction.options.getString('reason') || 'No reason provided';
 
     // Verify shift exists
-    const shift = getShiftByCode(shiftCode);
+    const shift = getShiftByCode(guildId, shiftCode);
     if (!shift) {
       return interaction.editReply(`❌ No shift found with code **${shiftCode}**. Please check the shift code and try again.`);
     }
 
     // Update shift
-    const success = updateShiftDurationByCode(shiftCode, newMinutes);
+    const success = updateShiftDurationByCode(guildId, shiftCode, newMinutes);
 
     if (!success) {
       return interaction.editReply('❌ Failed to update shift. Please try again.');
@@ -58,6 +63,7 @@ module.exports = {
     // Log audit
     const details = `Edited shift ${shiftCode} (User: ${shift.username}) - New duration: ${newMinutes} minutes - Reason: ${reason}`;
     addAuditLog(
+      guildId,
       interaction.user.id,
       interaction.user.username,
       'EDIT_SHIFT',
@@ -65,7 +71,7 @@ module.exports = {
       details
     );
 
-    await logAuditAction(interaction.client, interaction.user.username, 'EDIT_SHIFT', details);
+    await logAuditAction(interaction.client, guildId, interaction.user.username, 'EDIT_SHIFT', details);
 
     return interaction.editReply(`✅ Successfully updated shift **${shiftCode}** to **${newMinutes} minutes**.\n\n**User:** ${shift.username}\n**Reason:** ${reason}`);
   },

@@ -1,7 +1,5 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember } from 'discord.js';
-import { hasCommandPermission, getConfig } from '../config';
-import { writeFileSync } from 'fs';
-import { join } from 'path';
+import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember, AutocompleteInteraction } from 'discord.js';
+import { hasCommandPermission, getServerConfig, setQuotaForUnit } from '../config';
 import { addAuditLog } from '../database/database';
 import { logAuditAction } from '../services/shiftLogger';
 
@@ -14,6 +12,7 @@ module.exports = {
         .setName('unit_role')
         .setDescription('The unit role to set quota for')
         .setRequired(true)
+        .setAutocomplete(true)
     )
     .addIntegerOption(option =>
       option
@@ -23,15 +22,36 @@ module.exports = {
         .setMinValue(0)
     ),
 
+  async autocomplete(interaction: AutocompleteInteraction) {
+    const guildId = interaction.guildId;
+    if (!guildId) return;
+
+    const focusedValue = interaction.options.getFocused().toLowerCase();
+    const config = getServerConfig(guildId);
+    const unitNames = Object.keys(config.unitRoles);
+
+    const filtered = unitNames
+      .filter(name => name.toLowerCase().includes(focusedValue))
+      .slice(0, 25);
+
+    await interaction.respond(
+      filtered.map(name => ({ name, value: name }))
+    );
+  },
+
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ ephemeral: true });
 
-    const member = interaction.member as any;
-    const memberRoleIds = member.roles.cache.map((role: any) => role.id);
+    const guildId = interaction.guildId;
+    if (!guildId) {
+      return interaction.editReply('❌ This command can only be used in a server.');
+    }
+
+    const member = interaction.member as GuildMember;
+    const memberRoleIds = member.roles.cache.map(role => role.id);
 
     // Check command permissions
-    const { hasCommandPermission } = require('../config');
-    if (!hasCommandPermission(memberRoleIds)) {
+    if (!hasCommandPermission(memberRoleIds, guildId)) {
       return interaction.editReply('❌ You do not have permission to use this command. Only command staff can set quotas.');
     }
 
@@ -43,33 +63,39 @@ module.exports = {
     }
 
     // Get config and update
-    const { getConfig } = require('../config');
-    const config = getConfig();
+    const config = getServerConfig(guildId);
 
     // Check if unit role exists
     if (!config.unitRoles[unitRole]) {
       return interaction.editReply(`❌ Invalid unit role. Available units: ${Object.keys(config.unitRoles).join(', ')}`);
     }
 
-    // Update the quota in memory (note: this should ideally update the config file)
-    // For now, we'll just notify the user that they need to update the config file manually
-    // In a production environment, you'd want to persist this change
+    // Get previous quota for logging
+    const previousQuota = config.quotas.unitQuotas[unitRole] || config.quotas.defaultMinutes;
 
-    const { addAuditLog } = require('../database/database');
-    const { logAuditAction } = require('../services/shiftLogger');
+    // Update and persist the quota
+    const success = setQuotaForUnit(unitRole, minutes, guildId);
+
+    if (!success) {
+      return interaction.editReply('❌ Failed to update quota. Please check the bot logs.');
+    }
+
+    const details = `Set quota for ${unitRole} from ${previousQuota} to ${minutes} minutes`;
 
     addAuditLog(
+      guildId,
       interaction.user.id,
       interaction.user.username,
       'SET_QUOTA',
       null,
-      `Set quota for ${interaction.options.getString('unit_role')} to ${interaction.options.getInteger('minutes')} minutes`
+      details
     );
 
+    await logAuditAction(interaction.client, guildId, interaction.user.username, 'SET_QUOTA', details);
+
     return interaction.editReply(
-      '⚠️ **Note:** This command updates the quota in memory for the current session only.\n\n' +
-      'To make permanent changes, please update the `config/config.json` file and restart the bot.\n\n' +
-      `Quota for **${interaction.options.getString('unit_role')}** temporarily set to **${interaction.options.getInteger('minutes')} minutes**.`
+      `✅ Quota for **${unitRole}** has been set to **${minutes} minutes**.\n\n` +
+      `Previous quota: ${previousQuota} minutes`
     );
   },
 };

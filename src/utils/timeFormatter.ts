@@ -1,12 +1,17 @@
 export function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
+  const mins = Math.floor(minutes % 60);
+  const secs = Math.round((minutes % 1) * 60);
 
-  if (hours === 0) {
-    return `${mins} minute${mins !== 1 ? 's' : ''}`;
+  if (hours === 0 && mins === 0) {
+    return `${secs} second${secs !== 1 ? 's' : ''}`;
   }
 
-  return `${hours} hour${hours !== 1 ? 's' : ''} ${mins} minute${mins !== 1 ? 's' : ''}`;
+  if (hours === 0) {
+    return `${mins} minute${mins !== 1 ? 's' : ''} ${secs} second${secs !== 1 ? 's' : ''}`;
+  }
+
+  return `${hours} hour${hours !== 1 ? 's' : ''} ${mins} minute${mins !== 1 ? 's' : ''} ${secs} second${secs !== 1 ? 's' : ''}`;
 }
 
 export function formatTimestamp(timestamp: number): string {
@@ -23,7 +28,7 @@ export function formatShortTimestamp(timestamp: number): string {
 
 export function getCurrentShiftDuration(startTime: number): number {
   const now = Date.now();
-  return Math.floor((now - startTime) / 1000 / 60);
+  return (now - startTime) / 1000 / 60; // Keep decimal for seconds precision
 }
 
 export function formatDateForCycleEnd(date: Date): string {

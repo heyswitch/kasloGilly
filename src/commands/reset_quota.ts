@@ -7,7 +7,7 @@ import {
   ButtonStyle,
   ComponentType
 } from 'discord.js';
-import { hasCommandPermission, getConfig } from '../config';
+import { hasCommandPermission, getServerConfig } from '../config';
 import {
   deleteShiftsForUserInCycle,
   deleteShiftsForUnitInCycle,
@@ -31,16 +31,21 @@ module.exports = {
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ ephemeral: true });
 
+    const guildId = interaction.guildId;
+    if (!guildId) {
+      return interaction.editReply('❌ This command can only be used in a server.');
+    }
+
     const member = interaction.member as GuildMember;
     const memberRoleIds = member.roles.cache.map(role => role.id);
 
     // Check command permissions
-    if (!hasCommandPermission(memberRoleIds)) {
+    if (!hasCommandPermission(memberRoleIds, guildId)) {
       return interaction.editReply('❌ You do not have permission to use this command. Only command staff can reset quotas.');
     }
 
     const target = interaction.options.getString('target', true);
-    const activeQuotaCycle = getActiveQuotaCycle();
+    const activeQuotaCycle = getActiveQuotaCycle(guildId);
 
     if (!activeQuotaCycle) {
       return interaction.editReply('❌ No active quota cycle found.');
@@ -92,14 +97,14 @@ module.exports = {
       let details = '';
 
       if (target.toLowerCase() === 'all') {
-        deletedCount = deleteAllShiftsInCycle(activeQuotaCycle.id);
+        deletedCount = deleteAllShiftsInCycle(guildId, activeQuotaCycle.id);
         details = `Reset all quota data - ${deletedCount} shifts deleted`;
       } else if (target.startsWith('<@') && target.endsWith('>')) {
         const userId = target.replace(/[<@!>]/g, '');
-        deletedCount = deleteShiftsForUserInCycle(userId, activeQuotaCycle.id);
+        deletedCount = deleteShiftsForUserInCycle(guildId, userId, activeQuotaCycle.id);
         details = `Reset quota data for user ${target} - ${deletedCount} shifts deleted`;
       } else {
-        const config = getConfig();
+        const config = getServerConfig(guildId);
         if (!config.unitRoles[target]) {
           await confirmation.update({
             content: `❌ Invalid unit role. Available units: ${Object.keys(config.unitRoles).join(', ')}`,
@@ -107,12 +112,13 @@ module.exports = {
           });
           return;
         }
-        deletedCount = deleteShiftsForUnitInCycle(target, activeQuotaCycle.id);
+        deletedCount = deleteShiftsForUnitInCycle(guildId, target, activeQuotaCycle.id);
         details = `Reset quota data for ${target} - ${deletedCount} shifts deleted`;
       }
 
       // Log audit
       addAuditLog(
+        guildId,
         interaction.user.id,
         interaction.user.username,
         'RESET_QUOTA',
@@ -120,7 +126,7 @@ module.exports = {
         details
       );
 
-      await logAuditAction(interaction.client, interaction.user.username, 'RESET_QUOTA', details);
+      await logAuditAction(interaction.client, guildId, interaction.user.username, 'RESET_QUOTA', details);
 
       await confirmation.update({
         content: `✅ Successfully reset quota data!\n\n**Deleted:** ${deletedCount} shift record(s)`,

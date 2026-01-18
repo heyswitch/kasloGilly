@@ -23,11 +23,16 @@ module.exports = {
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ ephemeral: true });
 
+    const guildId = interaction.guildId;
+    if (!guildId) {
+      return interaction.editReply('❌ This command can only be used in a server.');
+    }
+
     const member = interaction.member as GuildMember;
     const memberRoleIds = member.roles.cache.map(role => role.id);
 
     // Check supervisor permissions
-    if (!hasSupervisorPermission(memberRoleIds)) {
+    if (!hasSupervisorPermission(memberRoleIds, guildId)) {
       return interaction.editReply('❌ You do not have permission to use this command. Only supervisors can delete shifts.');
     }
 
@@ -35,7 +40,7 @@ module.exports = {
     const reason = interaction.options.getString('reason') || 'No reason provided';
 
     // Verify shift exists
-    const shift = getShiftByCode(shiftCode);
+    const shift = getShiftByCode(guildId, shiftCode);
     if (!shift) {
       return interaction.editReply(`❌ No shift found with code **${shiftCode}**. Please check the shift code and try again.`);
     }
@@ -72,7 +77,7 @@ module.exports = {
       }
 
       // Delete shift
-      const success = deleteShiftByCode(shiftCode);
+      const success = deleteShiftByCode(guildId, shiftCode);
 
       if (!success) {
         await confirmation.update({
@@ -85,6 +90,7 @@ module.exports = {
       // Log audit
       const details = `Deleted shift ${shiftCode} (User: ${shift.username}) - Reason: ${reason}`;
       addAuditLog(
+        guildId,
         interaction.user.id,
         interaction.user.username,
         'DELETE_SHIFT',
@@ -92,7 +98,7 @@ module.exports = {
         details
       );
 
-      await logAuditAction(interaction.client, interaction.user.username, 'DELETE_SHIFT', details);
+      await logAuditAction(interaction.client, guildId, interaction.user.username, 'DELETE_SHIFT', details);
 
       await confirmation.update({
         content: `✅ Successfully deleted shift **${shiftCode}**.\n\n**User:** ${shift.username}\n**Reason:** ${reason}`,

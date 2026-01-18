@@ -1,4 +1,6 @@
-export interface Config {
+// Server-specific configuration
+export interface ServerConfig {
+  name: string;
   permissions: {
     command: Record<string, string>;
     supervisor: Record<string, string>;
@@ -24,6 +26,16 @@ export interface Config {
     quotaWarningPercentage: number;
     quotaReminderPercentage: number;
   };
+  channels: {
+    shiftLog: string;
+    activeShifts: string;
+    auditLog: string;
+  };
+}
+
+// Global config maps guild IDs to server configs
+export interface Config {
+  servers: Record<string, ServerConfig>;
 }
 
 export interface Shift {

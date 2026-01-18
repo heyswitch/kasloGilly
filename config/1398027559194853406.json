@@ -1,0 +1,53 @@
+{
+  "name": "Kaslo Police Department",
+  "permissions": {
+    "command": {
+      "Chief": "1403424744019198002",
+      "Deputy Chief": "DISCORD_ROLE_ID_HERE",
+      "Assistant Chief": "DISCORD_ROLE_ID_HERE"
+    },
+    "supervisor": {
+      "Supervisor": "1403424744019198002",
+      "Senior Supervisor": "DISCORD_ROLE_ID_HERE",
+      "Shift Commander": "DISCORD_ROLE_ID_HERE"
+    },
+    "employee": {
+      "Kaslo Police Department": "1403424744019198002"
+    }
+  },
+  "unitRoles": {
+    "Patrol Unit": ["1403424744019198002", "DISCORD_ROLE_ID_2"],
+    "Training Unit": ["DISCORD_ROLE_ID_3"],
+    "SWAT": ["DISCORD_ROLE_ID_4"],
+    "Traffic Unit": ["DISCORD_ROLE_ID_5"]
+  },
+  "quotas": {
+    "defaultMinutes": 30,
+    "unitQuotas": {
+      "Patrol Unit": 120,
+      "Training Unit": 60,
+      "SWAT": 90,
+      "Traffic Unit": 120
+    }
+  },
+  "quotaCycle": {
+    "dayOfWeek": 0,
+    "hour": 23,
+    "minute": 59,
+    "second": 0,
+    "timezone": "America/New_York"
+  },
+  "shifts": {
+    "autoEndAfterHours": 10,
+    "autoEndEnabled": false
+  },
+  "notifications": {
+    "quotaWarningPercentage": 75,
+    "quotaReminderPercentage": 50
+  },
+  "channels": {
+    "shiftLog": "1460713097944895707",
+    "activeShifts": "1460713123714564248",
+    "auditLog": "1460713173446561967"
+  }
+}

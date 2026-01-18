@@ -1,15 +1,17 @@
 import { Client, TextChannel, EmbedBuilder, Message } from 'discord.js';
 import { getAllActiveShifts } from '../database/database';
 import { getCurrentShiftDuration, formatDuration } from '../utils/timeFormatter';
+import { getAllGuildIds, getServerConfig } from '../config';
 
 let updateInterval: NodeJS.Timeout | null = null;
-let activeShiftsMessage: Message | null = null;
+// Store messages per guild
+const activeShiftsMessages: Map<string, Message> = new Map();
 
 export function startActiveShiftsUpdater(client: Client): void {
-  const channelId = process.env.ACTIVE_SHIFTS_CHANNEL_ID;
+  const guildIds = getAllGuildIds();
 
-  if (!channelId) {
-    console.warn('⚠️  ACTIVE_SHIFTS_CHANNEL_ID not set, active shifts updater disabled');
+  if (guildIds.length === 0) {
+    console.warn('⚠️  No guilds configured, active shifts updater disabled');
     return;
   }
 
@@ -17,54 +19,76 @@ export function startActiveShiftsUpdater(client: Client): void {
 
   // Update every 30 seconds
   updateInterval = setInterval(async () => {
-    try {
-      const channel = await client.channels.fetch(channelId) as TextChannel;
-      if (!channel) return;
+    for (const guildId of guildIds) {
+      try {
+        const config = getServerConfig(guildId);
+        const channelId = config.channels.activeShifts;
 
-      const embed = await createActiveShiftsEmbed();
+        if (!channelId) continue;
 
-      // If message doesn't exist or was deleted, create a new one
-      if (!activeShiftsMessage) {
-        try {
-          // Try to find existing message in last 10 messages
-          const messages = await channel.messages.fetch({ limit: 10 });
-          activeShiftsMessage = messages.find(m => m.author.id === client.user?.id && m.embeds.length > 0) || null;
-        } catch (error) {
-          console.error('Error fetching messages:', error);
+        const channel = await client.channels.fetch(channelId) as TextChannel;
+        if (!channel) continue;
+
+        const embed = await createActiveShiftsEmbed(guildId);
+
+        // Get or find the message for this guild
+        let activeShiftsMessage = activeShiftsMessages.get(guildId);
+
+        // If message doesn't exist or was deleted, try to find it
+        if (!activeShiftsMessage) {
+          try {
+            const messages = await channel.messages.fetch({ limit: 10 });
+            activeShiftsMessage = messages.find(m => m.author.id === client.user?.id && m.embeds.length > 0) || undefined;
+            if (activeShiftsMessage) {
+              activeShiftsMessages.set(guildId, activeShiftsMessage);
+            }
+          } catch (error) {
+            console.error(`Error fetching messages for guild ${guildId}:`, error);
+          }
         }
-      }
 
-      if (activeShiftsMessage) {
-        try {
-          await activeShiftsMessage.edit({ embeds: [embed] });
-        } catch (error) {
-          // Message was deleted, create new one
-          activeShiftsMessage = await channel.send({ embeds: [embed] });
+        if (activeShiftsMessage) {
+          try {
+            await activeShiftsMessage.edit({ embeds: [embed] });
+          } catch (error) {
+            // Message was deleted, create new one
+            const newMessage = await channel.send({ embeds: [embed] });
+            activeShiftsMessages.set(guildId, newMessage);
+          }
+        } else {
+          const newMessage = await channel.send({ embeds: [embed] });
+          activeShiftsMessages.set(guildId, newMessage);
         }
-      } else {
-        activeShiftsMessage = await channel.send({ embeds: [embed] });
+      } catch (error) {
+        console.error(`Error updating active shifts for guild ${guildId}:`, error);
       }
-    } catch (error) {
-      console.error('Error updating active shifts:', error);
     }
   }, 30000); // 30 seconds
 
   // Initial update
   setTimeout(async () => {
-    try {
-      const channel = await client.channels.fetch(channelId) as TextChannel;
-      if (!channel) return;
+    for (const guildId of guildIds) {
+      try {
+        const config = getServerConfig(guildId);
+        const channelId = config.channels.activeShifts;
 
-      const embed = await createActiveShiftsEmbed();
-      activeShiftsMessage = await channel.send({ embeds: [embed] });
-    } catch (error) {
-      console.error('Error creating initial active shifts message:', error);
+        if (!channelId) continue;
+
+        const channel = await client.channels.fetch(channelId) as TextChannel;
+        if (!channel) continue;
+
+        const embed = await createActiveShiftsEmbed(guildId);
+        const message = await channel.send({ embeds: [embed] });
+        activeShiftsMessages.set(guildId, message);
+      } catch (error) {
+        console.error(`Error creating initial active shifts message for guild ${guildId}:`, error);
+      }
     }
   }, 2000);
 }
 
-async function createActiveShiftsEmbed(): Promise<EmbedBuilder> {
-  const activeShifts = getAllActiveShifts();
+async function createActiveShiftsEmbed(guildId: string): Promise<EmbedBuilder> {
+  const activeShifts = getAllActiveShifts(guildId);
 
   const embed = new EmbedBuilder()
     .setTitle('🚨 Active Shifts')

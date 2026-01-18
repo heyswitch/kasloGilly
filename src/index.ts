@@ -1,25 +1,30 @@
 import { Client, GatewayIntentBits, Collection, REST, Routes } from 'discord.js';
 import { config as dotenvConfig } from 'dotenv';
-import { loadConfig } from './config';
-import { initDatabase, getActiveQuotaCycle, createQuotaCycle } from './database/database';
+import { loadAllConfigs, getAllGuildIds } from './config';
+import { initAllDatabases, getActiveQuotaCycle, createQuotaCycle } from './database/database';
 import { readdirSync } from 'fs';
 import { join } from 'path';
 
 dotenvConfig();
 
-// Load configuration
-loadConfig();
+// Load ALL server configurations
+loadAllConfigs();
 
-// Initialize database
-initDatabase();
+// Get list of configured guilds
+const guildIds = getAllGuildIds();
 
-// Ensure there's an active quota cycle
-let activeQuotaCycle = getActiveQuotaCycle();
-if (!activeQuotaCycle) {
-  const now = Date.now();
-  const oneWeek = 7 * 24 * 60 * 60 * 1000;
-  activeQuotaCycle = createQuotaCycle(now, now + oneWeek);
-  console.log('✅ Created initial quota cycle');
+// Initialize databases for all configured servers
+initAllDatabases(guildIds);
+
+// Ensure each server has an active quota cycle
+for (const guildId of guildIds) {
+  let activeQuotaCycle = getActiveQuotaCycle(guildId);
+  if (!activeQuotaCycle) {
+    const now = Date.now();
+    const oneWeek = 7 * 24 * 60 * 60 * 1000;
+    activeQuotaCycle = createQuotaCycle(guildId, now, now + oneWeek);
+    console.log(`✅ Created initial quota cycle for guild ${guildId}`);
+  }
 }
 
 // Create Discord client
@@ -59,6 +64,19 @@ for (const file of eventFiles) {
 
 // Handle interactions
 client.on('interactionCreate', async interaction => {
+  // Handle autocomplete
+  if (interaction.isAutocomplete()) {
+    const command = commands.get(interaction.commandName);
+    if (!command || !command.autocomplete) return;
+
+    try {
+      await command.autocomplete(interaction);
+    } catch (error) {
+      console.error('Error handling autocomplete:', error);
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const command = commands.get(interaction.commandName);
@@ -79,21 +97,28 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// Register commands
+// Register commands for all configured guilds
 async function registerCommands() {
   try {
-    console.log('Started refreshing application (/) commands.');
+    console.log('Started refreshing application (/) commands for all guilds.');
 
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN!);
-
     const commandData = Array.from(commands.values()).map(cmd => cmd.data.toJSON());
 
-    await rest.put(
-      Routes.applicationGuildCommands(process.env.CLIENT_ID!, process.env.GUILD_ID!),
-      { body: commandData },
-    );
+    // Register commands for each configured guild
+    for (const guildId of guildIds) {
+      try {
+        await rest.put(
+          Routes.applicationGuildCommands(process.env.CLIENT_ID!, guildId),
+          { body: commandData },
+        );
+        console.log(`✅ Successfully registered commands for guild ${guildId}`);
+      } catch (error) {
+        console.error(`❌ Failed to register commands for guild ${guildId}:`, error);
+      }
+    }
 
-    console.log('✅ Successfully reloaded application (/) commands.');
+    console.log('✅ Successfully reloaded application (/) commands for all guilds.');
   } catch (error) {
     console.error('Error registering commands:', error);
   }

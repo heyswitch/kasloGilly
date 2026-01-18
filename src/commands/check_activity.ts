@@ -17,40 +17,45 @@ module.exports = {
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ ephemeral: true });
 
+    const guildId = interaction.guildId;
+    if (!guildId) {
+      return interaction.editReply('❌ This command can only be used in a server.');
+    }
+
     const member = interaction.member as GuildMember;
     const memberRoleIds = member.roles.cache.map(role => role.id);
 
     // Check employee permissions
-    if (!hasEmployeePermission(memberRoleIds)) {
+    if (!hasEmployeePermission(memberRoleIds, guildId)) {
       return interaction.editReply('❌ You do not have permission to use this command. Only employees of the department can check activity.');
     }
 
     const targetUser = interaction.options.getUser('user') || interaction.user;
 
     // If user is not a supervisor, they can only check their own activity
-    if (!hasSupervisorPermission(memberRoleIds) && targetUser.id !== interaction.user.id) {
+    if (!hasSupervisorPermission(memberRoleIds, guildId) && targetUser.id !== interaction.user.id) {
       return interaction.editReply('❌ You can only check your own activity. Supervisors can check other users\' activity.');
     }
 
-    const activeQuotaCycle = getActiveQuotaCycle();
+    const activeQuotaCycle = getActiveQuotaCycle(guildId);
 
     if (!activeQuotaCycle) {
       return interaction.editReply('❌ No active quota cycle found. Please contact an administrator.');
     }
 
     // Get all shifts for the user in the current cycle
-    const shifts = getUserShiftsInCycle(targetUser.id, activeQuotaCycle.id);
+    const shifts = getUserShiftsInCycle(guildId, targetUser.id, activeQuotaCycle.id);
 
     if (shifts.length === 0) {
       return interaction.editReply(`📊 **${targetUser.username}** has no recorded shifts in the current activity cycle.`);
     }
 
     // Calculate total minutes
-    const totalMinutes = getTotalMinutesForUserInCycle(targetUser.id, activeQuotaCycle.id);
+    const totalMinutes = getTotalMinutesForUserInCycle(guildId, targetUser.id, activeQuotaCycle.id);
     const unitRole = shifts[0].unitRole;
-    const quotaMinutes = getQuotaForUnit(unitRole);
+    const quotaMinutes = getQuotaForUnit(unitRole, guildId);
     const quotaMet = totalMinutes >= quotaMinutes;
-    const cycleEnd = getNextQuotaCycleEnd();
+    const cycleEnd = getNextQuotaCycleEnd(guildId);
 
     // Create embed
     const embed = new EmbedBuilder()

@@ -1,9 +1,11 @@
 import Database from 'better-sqlite3';
 import { join } from 'path';
 import { randomBytes } from 'crypto';
+import { existsSync, mkdirSync } from 'fs';
 import { Shift, QuotaCycle, AuditLog } from '../types';
 
-let db: Database.Database;
+// Database connection manager: Map<guildId, Database>
+const databases = new Map<string, Database.Database>();
 
 /**
  * Generates a cryptographically secure random shift code
@@ -17,9 +19,19 @@ function generateShiftCode(): string {
     .toUpperCase();
 }
 
-export function initDatabase(): void {
-  const dbPath = join(__dirname, '../../database/activity.db');
-  db = new Database(dbPath);
+/**
+ * Initialize database for a specific guild
+ */
+export function initDatabase(guildId: string): void {
+  const dbDir = join(__dirname, '../../databases');
+
+  // Create databases directory if it doesn't exist
+  if (!existsSync(dbDir)) {
+    mkdirSync(dbDir, { recursive: true });
+  }
+
+  const dbPath = join(dbDir, `${guildId}.db`);
+  const db = new Database(dbPath);
 
   // Create tables
   db.exec(`
@@ -63,15 +75,33 @@ export function initDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_quota_cycles_active ON quota_cycles(is_active);
   `);
 
-  console.log('✅ Database initialized');
+  databases.set(guildId, db);
+  console.log(`✅ Database initialized for guild ${guildId}`);
 }
 
-export function getDatabase(): Database.Database {
+/**
+ * Initialize databases for all guilds
+ */
+export function initAllDatabases(guildIds: string[]): void {
+  for (const guildId of guildIds) {
+    initDatabase(guildId);
+  }
+}
+
+/**
+ * Get database instance for a specific guild
+ */
+export function getDatabase(guildId: string): Database.Database {
+  const db = databases.get(guildId);
+  if (!db) {
+    throw new Error(`Database not initialized for guild ${guildId}`);
+  }
   return db;
 }
 
 // Quota Cycle Functions
-export function getActiveQuotaCycle(): QuotaCycle | null {
+export function getActiveQuotaCycle(guildId: string): QuotaCycle | null {
+  const db = getDatabase(guildId);
   const row = db.prepare('SELECT * FROM quota_cycles WHERE is_active = 1 LIMIT 1').get() as any;
   if (!row) return null;
 
@@ -83,7 +113,8 @@ export function getActiveQuotaCycle(): QuotaCycle | null {
   };
 }
 
-export function createQuotaCycle(startDate: number, endDate: number): QuotaCycle {
+export function createQuotaCycle(guildId: string, startDate: number, endDate: number): QuotaCycle {
+  const db = getDatabase(guildId);
   const result = db.prepare(
     'INSERT INTO quota_cycles (start_date, end_date, is_active) VALUES (?, ?, 1)'
   ).run(startDate, endDate);
@@ -96,28 +127,31 @@ export function createQuotaCycle(startDate: number, endDate: number): QuotaCycle
   };
 }
 
-export function deactivateAllQuotaCycles(): void {
+export function deactivateAllQuotaCycles(guildId: string): void {
+  const db = getDatabase(guildId);
   db.prepare('UPDATE quota_cycles SET is_active = 0').run();
 }
 
-export function resetQuotaCycle(): QuotaCycle {
-  deactivateAllQuotaCycles();
+export function resetQuotaCycle(guildId: string): QuotaCycle {
+  deactivateAllQuotaCycles(guildId);
 
   const now = Date.now();
   const endDate = new Date();
   endDate.setDate(endDate.getDate() + 7); // Default 7 days
 
-  return createQuotaCycle(now, endDate.getTime());
+  return createQuotaCycle(guildId, now, endDate.getTime());
 }
 
 // Shift Functions
 export function startShift(
+  guildId: string,
   userId: string,
   username: string,
   unitRole: string,
   pictureLink: string,
   quotaCycleId: number
 ): Shift {
+  const db = getDatabase(guildId);
   const startTime = Date.now();
   const shiftCode = generateShiftCode();
 
@@ -142,12 +176,13 @@ export function startShift(
   };
 }
 
-export function endShift(shiftId: number, endPictureLink: string): Shift | null {
+export function endShift(guildId: string, shiftId: number, endPictureLink: string): Shift | null {
+  const db = getDatabase(guildId);
   const shift = db.prepare('SELECT * FROM shifts WHERE id = ?').get(shiftId) as any;
   if (!shift) return null;
 
   const endTime = Date.now();
-  const durationMinutes = Math.floor((endTime - shift.start_time) / 1000 / 60);
+  const durationMinutes = (endTime - shift.start_time) / 1000 / 60; // Keep decimal for seconds precision
 
   db.prepare(`
     UPDATE shifts
@@ -171,7 +206,8 @@ export function endShift(shiftId: number, endPictureLink: string): Shift | null 
   };
 }
 
-export function getActiveShiftForUser(userId: string): Shift | null {
+export function getActiveShiftForUser(guildId: string, userId: string): Shift | null {
+  const db = getDatabase(guildId);
   const row = db.prepare('SELECT * FROM shifts WHERE user_id = ? AND is_active = 1 LIMIT 1').get(userId) as any;
   if (!row) return null;
 
@@ -191,7 +227,8 @@ export function getActiveShiftForUser(userId: string): Shift | null {
   };
 }
 
-export function getAllActiveShifts(): Shift[] {
+export function getAllActiveShifts(guildId: string): Shift[] {
+  const db = getDatabase(guildId);
   const rows = db.prepare('SELECT * FROM shifts WHERE is_active = 1 ORDER BY start_time DESC').all() as any[];
 
   return rows.map(row => ({
@@ -210,7 +247,8 @@ export function getAllActiveShifts(): Shift[] {
   }));
 }
 
-export function getUserShiftsInCycle(userId: string, quotaCycleId: number): Shift[] {
+export function getUserShiftsInCycle(guildId: string, userId: string, quotaCycleId: number): Shift[] {
+  const db = getDatabase(guildId);
   const rows = db.prepare(`
     SELECT * FROM shifts
     WHERE user_id = ? AND quota_cycle_id = ?
@@ -233,7 +271,8 @@ export function getUserShiftsInCycle(userId: string, quotaCycleId: number): Shif
   }));
 }
 
-export function getUnitShiftsInCycle(unitRole: string, quotaCycleId: number): Shift[] {
+export function getUnitShiftsInCycle(guildId: string, unitRole: string, quotaCycleId: number): Shift[] {
+  const db = getDatabase(guildId);
   const rows = db.prepare(`
     SELECT * FROM shifts
     WHERE unit_role = ? AND quota_cycle_id = ?
@@ -256,7 +295,8 @@ export function getUnitShiftsInCycle(unitRole: string, quotaCycleId: number): Sh
   }));
 }
 
-export function getShiftByCode(shiftCode: string): Shift | null {
+export function getShiftByCode(guildId: string, shiftCode: string): Shift | null {
+  const db = getDatabase(guildId);
   const row = db.prepare('SELECT * FROM shifts WHERE shift_code = ?').get(shiftCode.toUpperCase()) as any;
   if (!row) return null;
 
@@ -276,7 +316,8 @@ export function getShiftByCode(shiftCode: string): Shift | null {
   };
 }
 
-export function updateShiftDuration(shiftId: number, newDurationMinutes: number): boolean {
+export function updateShiftDuration(guildId: string, shiftId: number, newDurationMinutes: number): boolean {
+  const db = getDatabase(guildId);
   const result = db.prepare(`
     UPDATE shifts
     SET duration_minutes = ?
@@ -286,7 +327,8 @@ export function updateShiftDuration(shiftId: number, newDurationMinutes: number)
   return result.changes > 0;
 }
 
-export function updateShiftDurationByCode(shiftCode: string, newDurationMinutes: number): boolean {
+export function updateShiftDurationByCode(guildId: string, shiftCode: string, newDurationMinutes: number): boolean {
+  const db = getDatabase(guildId);
   const result = db.prepare(`
     UPDATE shifts
     SET duration_minutes = ?
@@ -296,17 +338,20 @@ export function updateShiftDurationByCode(shiftCode: string, newDurationMinutes:
   return result.changes > 0;
 }
 
-export function deleteShift(shiftId: number): boolean {
+export function deleteShift(guildId: string, shiftId: number): boolean {
+  const db = getDatabase(guildId);
   const result = db.prepare('DELETE FROM shifts WHERE id = ?').run(shiftId);
   return result.changes > 0;
 }
 
-export function deleteShiftByCode(shiftCode: string): boolean {
+export function deleteShiftByCode(guildId: string, shiftCode: string): boolean {
+  const db = getDatabase(guildId);
   const result = db.prepare('DELETE FROM shifts WHERE shift_code = ?').run(shiftCode.toUpperCase());
   return result.changes > 0;
 }
 
-export function getTotalMinutesForUserInCycle(userId: string, quotaCycleId: number): number {
+export function getTotalMinutesForUserInCycle(guildId: string, userId: string, quotaCycleId: number): number {
+  const db = getDatabase(guildId);
   const result = db.prepare(`
     SELECT COALESCE(SUM(duration_minutes), 0) as total
     FROM shifts
@@ -318,19 +363,22 @@ export function getTotalMinutesForUserInCycle(userId: string, quotaCycleId: numb
 
 // Audit Log Functions
 export function addAuditLog(
+  guildId: string,
   adminId: string,
   adminUsername: string,
   action: string,
   targetUserId: string | null,
   details: string
 ): void {
+  const db = getDatabase(guildId);
   db.prepare(`
     INSERT INTO audit_logs (timestamp, admin_id, admin_username, action, target_user_id, details)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(Date.now(), adminId, adminUsername, action, targetUserId, details);
 }
 
-export function getRecentAuditLogs(limit: number = 50): AuditLog[] {
+export function getRecentAuditLogs(guildId: string, limit: number = 50): AuditLog[] {
+  const db = getDatabase(guildId);
   const rows = db.prepare(`
     SELECT * FROM audit_logs
     ORDER BY timestamp DESC
@@ -348,7 +396,8 @@ export function getRecentAuditLogs(limit: number = 50): AuditLog[] {
   }));
 }
 
-export function deleteShiftsForUserInCycle(userId: string, quotaCycleId: number): number {
+export function deleteShiftsForUserInCycle(guildId: string, userId: string, quotaCycleId: number): number {
+  const db = getDatabase(guildId);
   const result = db.prepare(`
     DELETE FROM shifts
     WHERE user_id = ? AND quota_cycle_id = ?
@@ -357,7 +406,8 @@ export function deleteShiftsForUserInCycle(userId: string, quotaCycleId: number)
   return result.changes;
 }
 
-export function deleteShiftsForUnitInCycle(unitRole: string, quotaCycleId: number): number {
+export function deleteShiftsForUnitInCycle(guildId: string, unitRole: string, quotaCycleId: number): number {
+  const db = getDatabase(guildId);
   const result = db.prepare(`
     DELETE FROM shifts
     WHERE unit_role = ? AND quota_cycle_id = ?
@@ -366,7 +416,8 @@ export function deleteShiftsForUnitInCycle(unitRole: string, quotaCycleId: numbe
   return result.changes;
 }
 
-export function deleteAllShiftsInCycle(quotaCycleId: number): number {
+export function deleteAllShiftsInCycle(guildId: string, quotaCycleId: number): number {
+  const db = getDatabase(guildId);
   const result = db.prepare(`
     DELETE FROM shifts
     WHERE quota_cycle_id = ?

@@ -1,7 +1,7 @@
 import { Client } from 'discord.js';
 import { getAllActiveShifts, endShift } from '../database/database';
 import { logShiftEnd } from './shiftLogger';
-import { getConfig } from '../config';
+import { getAllGuildIds, getServerConfig } from '../config';
 
 let autoEndInterval: NodeJS.Timeout | null = null;
 
@@ -10,44 +10,57 @@ let autoEndInterval: NodeJS.Timeout | null = null;
  * NOTE: This feature is currently DISABLED by default in config.json (autoEndEnabled: false)
  *
  * To enable this feature:
- * 1. Set "autoEndEnabled": true in config/config.json
+ * 1. Set "autoEndEnabled": true in config/{GUILD_ID}.json
  * 2. Adjust "autoEndAfterHours" to your desired threshold (default: 10 hours)
  */
 export function startAutoEndShiftsMonitor(client: Client): void {
-  const config = getConfig();
+  const guildIds = getAllGuildIds();
 
-  // Check if auto-end is enabled in config
-  if (!config.shifts.autoEndEnabled) {
-    console.log('⏸️  Auto-end shifts is DISABLED (set autoEndEnabled: true in config.json to enable)');
+  if (guildIds.length === 0) {
+    console.warn('⚠️  No guilds configured, auto-end shifts monitor disabled');
     return;
   }
 
-  console.log(`🕐 Starting auto-end shifts monitor (threshold: ${config.shifts.autoEndAfterHours} hours)...`);
+  // Check if any guild has auto-end enabled
+  const enabledGuilds = guildIds.filter(guildId => {
+    const config = getServerConfig(guildId);
+    return config.shifts.autoEndEnabled;
+  });
+
+  if (enabledGuilds.length === 0) {
+    console.log('⏸️  Auto-end shifts is DISABLED for all guilds (set autoEndEnabled: true in config files to enable)');
+    return;
+  }
+
+  console.log(`🕐 Starting auto-end shifts monitor for ${enabledGuilds.length} guild(s)...`);
 
   // Check every 5 minutes
   autoEndInterval = setInterval(async () => {
-    try {
-      const activeShifts = getAllActiveShifts();
-      const now = Date.now();
-      const maxDurationMs = config.shifts.autoEndAfterHours * 60 * 60 * 1000;
+    for (const guildId of enabledGuilds) {
+      try {
+        const config = getServerConfig(guildId);
+        const activeShifts = getAllActiveShifts(guildId);
+        const now = Date.now();
+        const maxDurationMs = config.shifts.autoEndAfterHours * 60 * 60 * 1000;
 
-      for (const shift of activeShifts) {
-        const shiftDurationMs = now - shift.startTime;
+        for (const shift of activeShifts) {
+          const shiftDurationMs = now - shift.startTime;
 
-        // If shift has been active for longer than threshold
-        if (shiftDurationMs >= maxDurationMs) {
-          console.log(`⏱️  Auto-ending shift for ${shift.username} (${shift.unitRole}) - exceeded ${config.shifts.autoEndAfterHours} hours`);
+          // If shift has been active for longer than threshold
+          if (shiftDurationMs >= maxDurationMs) {
+            console.log(`⏱️  Auto-ending shift for ${shift.username} (${shift.unitRole}) in guild ${guildId} - exceeded ${config.shifts.autoEndAfterHours} hours`);
 
-          // End shift with a system-generated note
-          const endedShift = endShift(shift.id, 'AUTO-ENDED: Shift exceeded maximum duration');
+            // End shift with a system-generated note
+            const endedShift = endShift(guildId, shift.id, 'AUTO-ENDED: Shift exceeded maximum duration');
 
-          if (endedShift) {
-            await logShiftEnd(client, endedShift);
+            if (endedShift) {
+              await logShiftEnd(client, guildId, endedShift);
+            }
           }
         }
+      } catch (error) {
+        console.error(`Error in auto-end shifts monitor for guild ${guildId}:`, error);
       }
-    } catch (error) {
-      console.error('Error in auto-end shifts monitor:', error);
     }
   }, 5 * 60 * 1000); // Check every 5 minutes
 }

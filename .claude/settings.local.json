@@ -5,7 +5,10 @@
       "Bash(npm start)",
       "Bash(npm run build:*)",
       "Bash(node migrate_add_shift_codes.js:*)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node migrate_to_multiserver.js:*)",
+      "Bash(ls:*)"
     ]
   }
 }

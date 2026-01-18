@@ -1,5 +1,5 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember, EmbedBuilder } from 'discord.js';
-import { hasSupervisorPermission, getConfig, getQuotaForUnit, getNextQuotaCycleEnd } from '../config';
+import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember, EmbedBuilder, AutocompleteInteraction } from 'discord.js';
+import { hasSupervisorPermission, getServerConfig, getQuotaForUnit, getNextQuotaCycleEnd } from '../config';
 import { getUnitShiftsInCycle, getActiveQuotaCycle, getTotalMinutesForUserInCycle } from '../database/database';
 import { formatDuration, formatDateForCycleEnd } from '../utils/timeFormatter';
 import { UserQuotaStats } from '../types';
@@ -13,16 +13,47 @@ module.exports = {
         .setName('unit_role')
         .setDescription('The unit role to generate report for')
         .setRequired(true)
+        .setAutocomplete(true)
     ),
+
+  async autocomplete(interaction: AutocompleteInteraction) {
+    const guildId = interaction.guildId;
+    if (!guildId) return;
+
+    const focusedValue = interaction.options.getFocused().toLowerCase();
+    const config = getServerConfig(guildId);
+    const unitNames = Object.keys(config.unitRoles);
+
+    const filtered = unitNames
+      .filter(name => name.toLowerCase().includes(focusedValue))
+      .slice(0, 25); // Discord limit
+
+    await interaction.respond(
+      filtered.map(name => ({ name, value: name }))
+    );
+  },
 
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ ephemeral: false });
+
+    const guildId = interaction.guildId;
+    if (!guildId) {
+      await interaction.editReply('❌ This command can only be used in a server.');
+      setTimeout(async () => {
+        try {
+          await interaction.deleteReply();
+        } catch (error) {
+          // Ignore if message was already deleted
+        }
+      }, 5000);
+      return;
+    }
 
     const member = interaction.member as GuildMember;
     const memberRoleIds = member.roles.cache.map(role => role.id);
 
     // Check supervisor permissions
-    if (!hasSupervisorPermission(memberRoleIds)) {
+    if (!hasSupervisorPermission(memberRoleIds, guildId)) {
       await interaction.editReply('❌ You do not have permission to use this command. Only supervisors can view activity reports.');
       // Delete the error message after 5 seconds to keep channel clean
       setTimeout(async () => {
@@ -36,7 +67,7 @@ module.exports = {
     }
 
     const unitRole = interaction.options.getString('unit_role', true);
-    const config = getConfig();
+    const config = getServerConfig(guildId);
 
     // Validate unit role
     if (!config.unitRoles[unitRole]) {
@@ -51,7 +82,7 @@ module.exports = {
       return;
     }
 
-    const activeQuotaCycle = getActiveQuotaCycle();
+    const activeQuotaCycle = getActiveQuotaCycle(guildId);
     if (!activeQuotaCycle) {
       await interaction.editReply('❌ No active quota cycle found.');
       setTimeout(async () => {
@@ -65,7 +96,7 @@ module.exports = {
     }
 
     // Get all shifts for this unit
-    const shifts = getUnitShiftsInCycle(unitRole, activeQuotaCycle.id);
+    const shifts = getUnitShiftsInCycle(guildId, unitRole, activeQuotaCycle.id);
 
     // Group shifts by user
     const userStats = new Map<string, UserQuotaStats>();
@@ -73,8 +104,8 @@ module.exports = {
     // First, add users who have shifts
     for (const shift of shifts) {
       if (!userStats.has(shift.userId)) {
-        const totalMinutes = getTotalMinutesForUserInCycle(shift.userId, activeQuotaCycle.id);
-        const quotaMinutes = getQuotaForUnit(unitRole);
+        const totalMinutes = getTotalMinutesForUserInCycle(guildId, shift.userId, activeQuotaCycle.id);
+        const quotaMinutes = getQuotaForUnit(unitRole, guildId);
 
         userStats.set(shift.userId, {
           userId: shift.userId,
@@ -99,8 +130,8 @@ module.exports = {
         const hasUnitRole = unitRoleIds.some(roleId => member.roles.cache.has(roleId));
 
         if (hasUnitRole && !userStats.has(memberId)) {
-          const totalMinutes = getTotalMinutesForUserInCycle(memberId, activeQuotaCycle.id);
-          const quotaMinutes = getQuotaForUnit(unitRole);
+          const totalMinutes = getTotalMinutesForUserInCycle(guildId, memberId, activeQuotaCycle.id);
+          const quotaMinutes = getQuotaForUnit(unitRole, guildId);
 
           userStats.set(memberId, {
             userId: memberId,
@@ -134,8 +165,8 @@ module.exports = {
     // Calculate statistics
     const totalUsers = sortedStats.length;
     const usersMetQuota = sortedStats.filter(s => s.quotaMet).length;
-    const quotaMinutes = getQuotaForUnit(unitRole);
-    const cycleEnd = getNextQuotaCycleEnd();
+    const quotaMinutes = getQuotaForUnit(unitRole, guildId);
+    const cycleEnd = getNextQuotaCycleEnd(guildId);
 
     // Create embed
     const embed = new EmbedBuilder()

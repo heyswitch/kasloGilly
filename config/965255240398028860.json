@@ -1,0 +1,62 @@
+{
+  "name": "Parks and Recreation",
+  "permissions": {
+    "command": {
+      "Director": "975951846390775838",
+      "Deputy Director": "965259577618739200",
+      "Commander": "965259578205958225"
+    },
+    "supervisor": {
+      "District Ranger": "965259578356948993",
+      "Supervisory Ranger": "965259579254513674"
+    },
+    "employee": {
+      "Parks and Recreation": "965259900987002930"
+    }
+  },
+  "unitRoles": {
+    "Patrol Division": ["1130181652342124755"],
+    "Copperhead Squad": ["1130182731876290611"],
+    "Eagle Squad": ["1130182796036559029"],
+    "Coyote Squad": ["1130182859131465778"],
+    "Fox Squad": ["1130182932636631162"],
+    "Reserves Unit": ["1130182267004788862"],
+    "Training Unit": ["1130182317340639393"],
+    "Investigations Unit": ["1130182630617383115"],
+    "Public Information Unit": ["1130182573247705158"]
+  },
+  "quotas": {
+    "defaultMinutes": 30,
+    "unitQuotas": {
+      "Patrol Division": 120,
+      "Copperhead Squad": 120,
+      "Eagle Squad": 120,
+      "Coyote Squad": 120,
+      "Fox Squad": 120,
+      "Reserves Unit": 60,
+      "Training Unit": 60,
+      "Investigations Unit": 90,
+      "Public Information Unit": 60
+    }
+  },
+  "quotaCycle": {
+    "dayOfWeek": 0,
+    "hour": 23,
+    "minute": 59,
+    "second": 0,
+    "timezone": "America/New_York"
+  },
+  "shifts": {
+    "autoEndAfterHours": 10,
+    "autoEndEnabled": false
+  },
+  "notifications": {
+    "quotaWarningPercentage": 75,
+    "quotaReminderPercentage": 50
+  },
+  "channels": {
+    "shiftLog": "1462478745968578794",
+    "activeShifts": "1462478998155165749",
+    "auditLog": "1462478661671321691"
+  }
+}

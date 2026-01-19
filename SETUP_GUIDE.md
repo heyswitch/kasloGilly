@@ -874,3 +874,16 @@ Done! Your server is ready to use. 🎉
 
 **Last Updated:** January 13, 2026
 **Bot Version:** Multi-Server v2.0
+
+
+Hello, I am Switchback, an Administrator for Harrison County.
+
+This is just a simple activity tracking bot for quotas in game.
+
+General Commands (All Members)
+
+/start_shift - Start tracking your activity time. Use this when you begin your session.
+
+/end_shift - End your current shift. Requires a screenshot as proof of activity.
+
+/check_activity - Check your current progress toward your quota for this cycle.

@@ -63,7 +63,7 @@ export function startActiveShiftsUpdater(client: Client): void {
         console.error(`Error updating active shifts for guild ${guildId}:`, error);
       }
     }
-  }, 30000); // 30 seconds
+  }, 60000); // 60 seconds
 
   // Initial update
   setTimeout(async () => {

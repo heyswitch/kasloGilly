@@ -1,3 +1,14 @@
+// Terminology configuration for customizable display names
+export interface Terminology {
+  loa: string;
+  adminLeave: string;
+  promotion: string;
+  demotion: string;
+  transfer: string;
+  discharge: string;
+  hire: string;
+}
+
 // Server-specific configuration
 export interface ServerConfig {
   name: string;
@@ -30,7 +41,10 @@ export interface ServerConfig {
     shiftLog: string;
     activeShifts: string;
     auditLog: string;
+    departmentLog: string;
   };
+  departmentFullName: string;
+  terminology?: Terminology;
 }
 
 // Global config maps guild IDs to server configs
@@ -78,4 +92,53 @@ export interface AuditLog {
   action: string;
   targetUserId: string | null;
   details: string;
+}
+
+// Department Action Types
+export type DepartmentActionType =
+  | 'LOA'
+  | 'ADMIN_LEAVE'
+  | 'PROMOTION'
+  | 'DEMOTION'
+  | 'TRANSFER'
+  | 'DISCHARGE'
+  | 'HIRE';
+
+export type DischargeType = 'HONORABLE' | 'RESIGNATION' | 'TERMINATION';
+
+export interface DepartmentAction {
+  id: number;
+  actionType: DepartmentActionType;
+  targetUserId: string;
+  targetUsername: string;
+  adminUserId: string;
+  adminUsername: string;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: number;
+  endDate: number | null;
+  removedAt: number | null;
+  removedByUserId: string | null;
+  removedByUsername: string | null;
+  previousRank: string | null;
+  newRank: string | null;
+  previousUnit: string | null;
+  newUnit: string | null;
+  dischargeType: DischargeType | null;
+  messageId: string | null;
+}
+
+export interface CreateDepartmentAction {
+  actionType: DepartmentActionType;
+  targetUserId: string;
+  targetUsername: string;
+  adminUserId: string;
+  adminUsername: string;
+  notes?: string;
+  endDate?: number;
+  previousRank?: string;
+  newRank?: string;
+  previousUnit?: string;
+  newUnit?: string;
+  dischargeType?: DischargeType;
 }

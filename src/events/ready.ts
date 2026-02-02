@@ -1,5 +1,6 @@
 import { Client } from 'discord.js';
 import { startActiveShiftsUpdater } from '../services/activeShiftsUpdater';
+import { startLOAExpiryMonitor } from '../services/loaExpiryMonitor';
 // import { startAutoEndShiftsMonitor } from '../services/autoEndShifts';
 
 module.exports = {
@@ -11,6 +12,9 @@ module.exports = {
 
     // Start the active shifts updater
     startActiveShiftsUpdater(client);
+
+    // Start the LOA expiry monitor (auto-removes expired LOAs)
+    startLOAExpiryMonitor(client);
 
     // Auto-end shifts after configured hours (DISABLED by default)
     // To enable: Set "autoEndEnabled": true in config/config.json

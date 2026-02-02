@@ -1,5 +1,6 @@
 {
   "name": "bot test server",
+  "departmentFullName": "Bot Test Department",
   "permissions": {
     "command": {
       "Chief": "1403424744019198002",
@@ -48,6 +49,7 @@
   "channels": {
     "shiftLog": "1460713097944895707",
     "activeShifts": "1460713123714564248",
-    "auditLog": "1460713173446561967"
+    "auditLog": "1460713173446561967",
+    "departmentLog": ""
   }
 }

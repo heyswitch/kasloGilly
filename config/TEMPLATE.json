@@ -1,5 +1,6 @@
 {
   "name": "Your Department Name",
+  "departmentFullName": "Your Full Department Name (e.g., Clark County Sheriff's Office)",
   "permissions": {
     "command": {
       "Chief": "ROLE_ID_HERE",
@@ -48,6 +49,16 @@
   "channels": {
     "shiftLog": "CHANNEL_ID_HERE",
     "activeShifts": "CHANNEL_ID_HERE",
-    "auditLog": "CHANNEL_ID_HERE"
+    "auditLog": "CHANNEL_ID_HERE",
+    "departmentLog": "CHANNEL_ID_HERE"
+  },
+  "terminology": {
+    "loa": "Leave of Absence",
+    "adminLeave": "Administrative Leave",
+    "promotion": "Promotion",
+    "demotion": "Demotion",
+    "transfer": "Transfer",
+    "discharge": "Discharge",
+    "hire": "New Hire"
   }
 }

@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import { join } from 'path';
 import { randomBytes } from 'crypto';
 import { existsSync, mkdirSync } from 'fs';
-import { Shift, QuotaCycle, AuditLog } from '../types';
+import { Shift, QuotaCycle, AuditLog, DepartmentAction, DepartmentActionType, DischargeType, CreateDepartmentAction } from '../types';
 
 // Database connection manager: Map<guildId, Database>
 const databases = new Map<string, Database.Database>();
@@ -67,6 +67,33 @@ export function initDatabase(guildId: string): void {
       target_user_id TEXT,
       details TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS department_actions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      action_type TEXT NOT NULL,
+      target_user_id TEXT NOT NULL,
+      target_username TEXT NOT NULL,
+      admin_user_id TEXT NOT NULL,
+      admin_username TEXT NOT NULL,
+      notes TEXT,
+      is_active INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      end_date INTEGER,
+      removed_at INTEGER,
+      removed_by_user_id TEXT,
+      removed_by_username TEXT,
+      previous_rank TEXT,
+      new_rank TEXT,
+      previous_unit TEXT,
+      new_unit TEXT,
+      discharge_type TEXT,
+      message_id TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_department_actions_user ON department_actions(target_user_id);
+    CREATE INDEX IF NOT EXISTS idx_department_actions_type ON department_actions(action_type);
+    CREATE INDEX IF NOT EXISTS idx_department_actions_active ON department_actions(is_active);
+    CREATE INDEX IF NOT EXISTS idx_department_actions_end_date ON department_actions(end_date);
 
     CREATE INDEX IF NOT EXISTS idx_shifts_user_id ON shifts(user_id);
     CREATE INDEX IF NOT EXISTS idx_shifts_quota_cycle ON shifts(quota_cycle_id);
@@ -424,4 +451,172 @@ export function deleteAllShiftsInCycle(guildId: string, quotaCycleId: number): n
   `).run(quotaCycleId);
 
   return result.changes;
+}
+
+// Department Action Functions
+
+function mapRowToDepartmentAction(row: any): DepartmentAction {
+  return {
+    id: row.id,
+    actionType: row.action_type as DepartmentActionType,
+    targetUserId: row.target_user_id,
+    targetUsername: row.target_username,
+    adminUserId: row.admin_user_id,
+    adminUsername: row.admin_username,
+    notes: row.notes,
+    isActive: row.is_active === 1,
+    createdAt: row.created_at,
+    endDate: row.end_date,
+    removedAt: row.removed_at,
+    removedByUserId: row.removed_by_user_id,
+    removedByUsername: row.removed_by_username,
+    previousRank: row.previous_rank,
+    newRank: row.new_rank,
+    previousUnit: row.previous_unit,
+    newUnit: row.new_unit,
+    dischargeType: row.discharge_type as DischargeType | null,
+    messageId: row.message_id
+  };
+}
+
+export function createDepartmentAction(
+  guildId: string,
+  action: CreateDepartmentAction
+): DepartmentAction {
+  const db = getDatabase(guildId);
+  const createdAt = Date.now();
+  const isActive = action.actionType === 'LOA' || action.actionType === 'ADMIN_LEAVE' ? 1 : 0;
+
+  const result = db.prepare(`
+    INSERT INTO department_actions (
+      action_type, target_user_id, target_username, admin_user_id, admin_username,
+      notes, is_active, created_at, end_date, previous_rank, new_rank,
+      previous_unit, new_unit, discharge_type
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    action.actionType,
+    action.targetUserId,
+    action.targetUsername,
+    action.adminUserId,
+    action.adminUsername,
+    action.notes || null,
+    isActive,
+    createdAt,
+    action.endDate || null,
+    action.previousRank || null,
+    action.newRank || null,
+    action.previousUnit || null,
+    action.newUnit || null,
+    action.dischargeType || null
+  );
+
+  return {
+    id: result.lastInsertRowid as number,
+    actionType: action.actionType,
+    targetUserId: action.targetUserId,
+    targetUsername: action.targetUsername,
+    adminUserId: action.adminUserId,
+    adminUsername: action.adminUsername,
+    notes: action.notes || null,
+    isActive: isActive === 1,
+    createdAt,
+    endDate: action.endDate || null,
+    removedAt: null,
+    removedByUserId: null,
+    removedByUsername: null,
+    previousRank: action.previousRank || null,
+    newRank: action.newRank || null,
+    previousUnit: action.previousUnit || null,
+    newUnit: action.newUnit || null,
+    dischargeType: action.dischargeType || null,
+    messageId: null
+  };
+}
+
+export function getActiveLeaveForUser(
+  guildId: string,
+  userId: string
+): DepartmentAction | null {
+  const db = getDatabase(guildId);
+  const row = db.prepare(`
+    SELECT * FROM department_actions
+    WHERE target_user_id = ?
+    AND action_type IN ('LOA', 'ADMIN_LEAVE')
+    AND is_active = 1
+    LIMIT 1
+  `).get(userId) as any;
+
+  if (!row) return null;
+  return mapRowToDepartmentAction(row);
+}
+
+export function getAllActiveLeaves(guildId: string): DepartmentAction[] {
+  const db = getDatabase(guildId);
+  const rows = db.prepare(`
+    SELECT * FROM department_actions
+    WHERE action_type IN ('LOA', 'ADMIN_LEAVE')
+    AND is_active = 1
+    ORDER BY created_at DESC
+  `).all() as any[];
+
+  return rows.map(mapRowToDepartmentAction);
+}
+
+export function getExpiredLOAs(guildId: string): DepartmentAction[] {
+  const db = getDatabase(guildId);
+  const now = Date.now();
+  const rows = db.prepare(`
+    SELECT * FROM department_actions
+    WHERE action_type = 'LOA'
+    AND is_active = 1
+    AND end_date IS NOT NULL
+    AND end_date <= ?
+  `).all(now) as any[];
+
+  return rows.map(mapRowToDepartmentAction);
+}
+
+export function removeDepartmentLeave(
+  guildId: string,
+  actionId: number,
+  removedByUserId: string | null,
+  removedByUsername: string | null
+): boolean {
+  const db = getDatabase(guildId);
+  const result = db.prepare(`
+    UPDATE department_actions
+    SET is_active = 0, removed_at = ?, removed_by_user_id = ?, removed_by_username = ?
+    WHERE id = ?
+  `).run(Date.now(), removedByUserId, removedByUsername, actionId);
+
+  return result.changes > 0;
+}
+
+export function updateDepartmentActionMessageId(
+  guildId: string,
+  actionId: number,
+  messageId: string
+): boolean {
+  const db = getDatabase(guildId);
+  const result = db.prepare(`
+    UPDATE department_actions SET message_id = ? WHERE id = ?
+  `).run(messageId, actionId);
+
+  return result.changes > 0;
+}
+
+export function getUserDepartmentHistory(
+  guildId: string,
+  userId: string,
+  limit: number = 50
+): DepartmentAction[] {
+  const db = getDatabase(guildId);
+  const rows = db.prepare(`
+    SELECT * FROM department_actions
+    WHERE target_user_id = ?
+    ORDER BY created_at DESC
+    LIMIT ?
+  `).all(userId, limit) as any[];
+
+  return rows.map(mapRowToDepartmentAction);
 }

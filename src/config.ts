@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, existsSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { ServerConfig } from './types';
+import { ServerConfig, Terminology, DepartmentActionType } from './types';
 
 const serverConfigs: Map<string, ServerConfig> = new Map();
 
@@ -55,37 +55,81 @@ export function getAllGuildIds(): string[] {
 
 export function getNextQuotaCycleEnd(guildId: string): Date {
   const cfg = getServerConfig(guildId);
+  const timezone = cfg.quotaCycle.timezone;
   const now = new Date();
 
-  // Convert to the configured timezone
-  const options: Intl.DateTimeFormatOptions = {
-    timeZone: cfg.quotaCycle.timezone,
+  // Helper to get date/time parts in the configured timezone
+  const formatOptions: Intl.DateTimeFormatOptions = {
+    timeZone: timezone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: false
+    hour12: false,
+    weekday: 'short'
   };
 
-  const formatter = new Intl.DateTimeFormat('en-US', options);
-  const parts = formatter.formatToParts(now);
+  const formatter = new Intl.DateTimeFormat('en-US', formatOptions);
+  const getParts = (date: Date) => {
+    const parts = formatter.formatToParts(date);
+    const get = (type: string) => parts.find(p => p.type === type)?.value || '0';
+    return {
+      year: parseInt(get('year')),
+      month: parseInt(get('month')),
+      day: parseInt(get('day')),
+      hour: parseInt(get('hour')),
+      minute: parseInt(get('minute')),
+      second: parseInt(get('second')),
+      weekday: get('weekday')
+    };
+  };
 
-  const currentDate = new Date();
-  const targetDay = cfg.quotaCycle.dayOfWeek;
-  const currentDay = currentDate.getDay();
+  const dayMap: Record<string, number> = {
+    'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+  };
 
-  let daysUntilTarget = targetDay - currentDay;
-  if (daysUntilTarget <= 0) {
-    daysUntilTarget += 7;
+  // Get current time in the configured timezone
+  const nowParts = getParts(now);
+  const currentDay = dayMap[nowParts.weekday];
+
+  const { dayOfWeek: targetDay, hour: targetHour, minute: targetMinute, second: targetSecond } = cfg.quotaCycle;
+
+  // Calculate days until target day
+  let daysUntil = targetDay - currentDay;
+  if (daysUntil === 0) {
+    // Same day - check if target time has already passed
+    const nowSecs = nowParts.hour * 3600 + nowParts.minute * 60 + nowParts.second;
+    const targetSecs = targetHour * 3600 + targetMinute * 60 + targetSecond;
+    if (nowSecs >= targetSecs) daysUntil = 7;
+  } else if (daysUntil < 0) {
+    daysUntil += 7;
   }
 
-  const nextCycleEnd = new Date(currentDate);
-  nextCycleEnd.setDate(currentDate.getDate() + daysUntilTarget);
-  nextCycleEnd.setHours(cfg.quotaCycle.hour, cfg.quotaCycle.minute, cfg.quotaCycle.second, 0);
+  // Get the target date in the configured timezone
+  const targetDate = new Date(now.getTime() + daysUntil * 86400000);
+  const targetParts = getParts(targetDate);
 
-  return nextCycleEnd;
+  // Build ISO string for the target datetime (without timezone suffix)
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const isoStr = `${targetParts.year}-${pad(targetParts.month)}-${pad(targetParts.day)}T${pad(targetHour)}:${pad(targetMinute)}:${pad(targetSecond)}`;
+
+  // Convert from configured timezone to UTC by calculating the offset
+  // First, treat the ISO string as UTC to get a reference point
+  const utcGuess = new Date(isoStr + 'Z');
+  const guessParts = getParts(utcGuess);
+
+  // Calculate the timezone offset in minutes
+  let offsetMins = (guessParts.hour - targetHour) * 60 + (guessParts.minute - targetMinute);
+
+  // Handle day boundary crossing (e.g., 23:59 ET = 04:59 UTC next day)
+  if (guessParts.day !== targetParts.day) {
+    offsetMins += (guessParts.day > targetParts.day ? 1 : -1) * 1440;
+  }
+
+  // Subtract the offset to get the correct UTC time
+  return new Date(utcGuess.getTime() - offsetMins * 60000);
 }
 
 export function hasCommandPermission(roleIds: string[], guildId: string): boolean {
@@ -147,4 +191,36 @@ export function setQuotaForUnit(unitRole: string, minutes: number, guildId: stri
     console.error(`Failed to set quota for ${unitRole} in guild ${guildId}:`, error);
     return false;
   }
+}
+
+const DEFAULT_TERMINOLOGY: Terminology = {
+  loa: 'Leave of Absence',
+  adminLeave: 'Administrative Leave',
+  promotion: 'Promotion',
+  demotion: 'Demotion',
+  transfer: 'Transfer',
+  discharge: 'Discharge',
+  hire: 'New Hire'
+};
+
+export function getTerminology(guildId: string): Terminology {
+  const cfg = getServerConfig(guildId);
+  return {
+    ...DEFAULT_TERMINOLOGY,
+    ...cfg.terminology
+  };
+}
+
+export function getActionTerminology(guildId: string, actionType: DepartmentActionType): string {
+  const terms = getTerminology(guildId);
+  const mapping: Record<DepartmentActionType, string> = {
+    LOA: terms.loa,
+    ADMIN_LEAVE: terms.adminLeave,
+    PROMOTION: terms.promotion,
+    DEMOTION: terms.demotion,
+    TRANSFER: terms.transfer,
+    DISCHARGE: terms.discharge,
+    HIRE: terms.hire
+  };
+  return mapping[actionType];
 }

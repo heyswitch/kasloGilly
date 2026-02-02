@@ -1,5 +1,6 @@
 {
   "name": "Parks and Recreation",
+  "departmentFullName": "Harrison County Parks and Recreation",
   "permissions": {
     "command": {
       "Director": "975951846390775838",
@@ -8,7 +9,8 @@
     },
     "supervisor": {
       "District Ranger": "965259578356948993",
-      "Supervisory Ranger": "965259579254513674"
+      "Supervisory Ranger": "965259579254513674",
+      "Investigation Unit": "965264199272001616"
     },
     "employee": {
       "Parks and Recreation": "965259900987002930"
@@ -57,6 +59,10 @@
   "channels": {
     "shiftLog": "1462478745968578794",
     "activeShifts": "1462478998155165749",
-    "auditLog": "1462478661671321691"
+    "auditLog": "1462478661671321691",
+    "departmentLog": "1129517165985407056"
+  },
+  "terminology": {
+    "adminLeave": "Modified Duty"
   }
 }

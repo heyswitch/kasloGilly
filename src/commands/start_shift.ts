@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember } from 'discord.js';
 import { getUserUnitRoles, hasEmployeePermission } from '../config';
-import { getActiveShiftForUser, startShift, getActiveQuotaCycle } from '../database/database';
+import { getActiveShiftForUser, startShift, getActiveQuotaCycle, getActiveLeaveForUser } from '../database/database';
 import { isValidUrl } from '../utils/timeFormatter';
 import { logShiftStart } from '../services/shiftLogger';
 
@@ -30,6 +30,13 @@ module.exports = {
     const memberRoleIds = member.roles.cache.map(role => role.id);
     if (!hasEmployeePermission(memberRoleIds, guildId)) {
       return interaction.editReply('❌ You do not have permission to use this command. Only employees of the department can start shifts.');
+    }
+
+    // Check if user is on LOA or Administrative Leave
+    const activeLeave = getActiveLeaveForUser(guildId, interaction.user.id);
+    if (activeLeave) {
+      const leaveType = activeLeave.actionType === 'LOA' ? 'Leave of Absence' : 'Administrative Leave';
+      return interaction.editReply(`❌ You cannot start a shift while on ${leaveType}. Contact a supervisor if this is in error.`);
     }
 
     // Validate picture link

@@ -1,5 +1,6 @@
 {
   "name": "Harrison County Transit Authority",
+  "departmentFullName": "Harrison County Transit Authority",
   "permissions": {
     "command": {
       "Director": "1010761786171080815",
@@ -102,6 +103,7 @@
   "channels": {
     "shiftLog": "1010762602814648450",
     "activeShifts": "1462234355790512198",
-    "auditLog": "1462233408905412652"
+    "auditLog": "1462233408905412652",
+    "departmentLog": "1467394796728356895"
   }
 }

@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember } from 'discord.js';
-import { hasCommandPermission, getTerminology } from '../config';
+import { hasSupervisorPermission, getTerminology } from '../config';
 import {
   createDepartmentAction,
   getActiveLeaveForUser,
@@ -38,9 +38,9 @@ module.exports = {
 
     const terms = getTerminology(guildId);
 
-    if (!hasCommandPermission(memberRoleIds, guildId)) {
+    if (!hasSupervisorPermission(memberRoleIds, guildId)) {
       return interaction.editReply(
-        `You do not have permission to use this command. Only command staff can place members on ${terms.adminLeave}.`
+        `You do not have permission to use this command. Only supervisors and above can place members on ${terms.adminLeave}.`
       );
     }
 

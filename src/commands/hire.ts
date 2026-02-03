@@ -6,9 +6,9 @@ import { logDepartmentAction } from '../services/departmentLogger';
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('hire')
-    .setDescription('Log a new member hire/acceptance')
+    .setDescription('Log new member hire(s)/acceptance(s)')
     .addStringOption(option =>
-      option.setName('username').setDescription('The Roblox username being hired').setRequired(true)
+      option.setName('username').setDescription('Roblox username(s) - separate multiple with commas (e.g., user1, user2, user3)').setRequired(true)
     )
     .addStringOption(option =>
       option.setName('notes').setDescription('Additional notes (e.g., External Hire, Transfer)').setRequired(false)
@@ -29,36 +29,69 @@ module.exports = {
       return interaction.editReply('You do not have permission to use this command.');
     }
 
-    const username = interaction.options.getString('username', true);
+    const usernameInput = interaction.options.getString('username', true);
     const notes = interaction.options.getString('notes');
-    const targetUserId = `roblox_${username.toLowerCase()}`;
 
-    // Create the hire record
-    const action = createDepartmentAction(guildId, {
-      actionType: 'HIRE',
-      targetUserId: targetUserId,
-      targetUsername: username,
-      adminUserId: interaction.user.id,
-      adminUsername: interaction.user.username,
-      notes: notes || undefined
-    });
+    // Parse multiple usernames (comma-separated)
+    const usernames = usernameInput.split(',').map(u => u.trim()).filter(u => u.length > 0);
 
-    // Log to channel
-    const messageId = await logDepartmentAction(interaction.client, guildId, action);
-    if (messageId) {
-      updateDepartmentActionMessageId(guildId, action.id, messageId);
+    if (usernames.length === 0) {
+      return interaction.editReply('Please provide at least one valid username.');
     }
 
-    // Audit log
-    addAuditLog(
-      guildId,
-      interaction.user.id,
-      interaction.user.username,
-      'HIRE',
-      targetUserId,
-      `Hired ${username}${notes ? ` - ${notes}` : ''}`
-    );
+    const hiredUsers: string[] = [];
+    const failedUsers: string[] = [];
 
-    return interaction.editReply(`Successfully logged hire for **${username}**.`);
+    for (const username of usernames) {
+      try {
+        const targetUserId = `roblox_${username.toLowerCase()}`;
+
+        // Create the hire record
+        const action = createDepartmentAction(guildId, {
+          actionType: 'HIRE',
+          targetUserId: targetUserId,
+          targetUsername: username,
+          adminUserId: interaction.user.id,
+          adminUsername: interaction.user.username,
+          notes: notes || undefined
+        });
+
+        // Log to channel
+        const messageId = await logDepartmentAction(interaction.client, guildId, action);
+        if (messageId) {
+          updateDepartmentActionMessageId(guildId, action.id, messageId);
+        }
+
+        // Audit log
+        addAuditLog(
+          guildId,
+          interaction.user.id,
+          interaction.user.username,
+          'HIRE',
+          targetUserId,
+          `Hired ${username}${notes ? ` - ${notes}` : ''}`
+        );
+
+        hiredUsers.push(username);
+      } catch (error) {
+        console.error(`Error hiring user ${username}:`, error);
+        failedUsers.push(username);
+      }
+    }
+
+    // Build response message
+    let response = '';
+    if (hiredUsers.length > 0) {
+      if (hiredUsers.length === 1) {
+        response = `Successfully logged hire for **${hiredUsers[0]}**.`;
+      } else {
+        response = `Successfully logged hires for **${hiredUsers.length}** users:\n${hiredUsers.map(u => `• ${u}`).join('\n')}`;
+      }
+    }
+    if (failedUsers.length > 0) {
+      response += `\n\nFailed to hire: ${failedUsers.join(', ')}`;
+    }
+
+    return interaction.editReply(response);
   }
 };

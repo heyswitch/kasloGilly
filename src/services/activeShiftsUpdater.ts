@@ -77,6 +77,17 @@ export function startActiveShiftsUpdater(client: Client): void {
         const channel = await client.channels.fetch(channelId) as TextChannel;
         if (!channel) continue;
 
+        // Delete any existing bot messages in the channel before sending a new one
+        try {
+          const messages = await channel.messages.fetch({ limit: 50 });
+          const botMessages = messages.filter(m => m.author.id === client.user?.id && m.embeds.length > 0);
+          for (const [, msg] of botMessages) {
+            await msg.delete();
+          }
+        } catch (error) {
+          console.error(`Error deleting old active shifts messages for guild ${guildId}:`, error);
+        }
+
         const embed = await createActiveShiftsEmbed(guildId);
         const message = await channel.send({ embeds: [embed] });
         activeShiftsMessages.set(guildId, message);

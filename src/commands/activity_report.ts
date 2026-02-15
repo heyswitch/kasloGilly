@@ -106,10 +106,11 @@ module.exports = {
       if (!userStats.has(shift.userId)) {
         const totalMinutes = getTotalMinutesForUserInCycle(guildId, shift.userId, activeQuotaCycle.id);
         const quotaMinutes = getQuotaForUnit(unitRole, guildId);
+        const member = await interaction.guild?.members.fetch(shift.userId).catch(() => null);
 
         userStats.set(shift.userId, {
           userId: shift.userId,
-          username: shift.username,
+          username: member?.displayName || shift.username,
           unitRole: shift.unitRole,
           totalMinutes,
           quotaMinutes,
@@ -135,7 +136,7 @@ module.exports = {
 
           userStats.set(memberId, {
             userId: memberId,
-            username: member.user.username,
+            username: member.displayName,
             unitRole: unitRole,
             totalMinutes,
             quotaMinutes,

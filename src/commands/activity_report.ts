@@ -101,9 +101,6 @@ module.exports = {
     // Group shifts by user
     const userStats = new Map<string, UserQuotaStats>();
 
-    // Fetch all members to get displayNames
-    await interaction.guild?.members.fetch();
-
     // First, add users who have shifts
     for (const shift of shifts) {
       if (!userStats.has(shift.userId)) {
@@ -113,7 +110,15 @@ module.exports = {
         // Get server nickname if available
         let displayName = shift.username;
         try {
-          const guildMember = interaction.guild?.members.cache.get(shift.userId);
+          // Try to get from cache first, fetch only if not cached
+          let guildMember = interaction.guild?.members.cache.get(shift.userId);
+          if (!guildMember && interaction.guild) {
+            try {
+              guildMember = await interaction.guild.members.fetch(shift.userId);
+            } catch {
+              // Member might have left the server
+            }
+          }
           if (guildMember) {
             displayName = guildMember.displayName;
           }
@@ -136,27 +141,33 @@ module.exports = {
     // Then, add all members with this unit role (even if they have no shifts)
     const unitRoleIds = config.unitRoles[unitRole];
     if (unitRoleIds && interaction.guild) {
-      // Fetch all members to ensure we have the complete list
-      await interaction.guild.members.fetch();
+      try {
+        // Fetch members with this specific role to avoid rate limits
+        // Note: This may not get everyone if the guild is very large
+        for (const roleId of unitRoleIds) {
+          const role = interaction.guild.roles.cache.get(roleId);
+          if (role) {
+            for (const [memberId, member] of role.members) {
+              if (!userStats.has(memberId)) {
+                const totalMinutes = getTotalMinutesForUserInCycle(guildId, memberId, activeQuotaCycle.id);
+                const quotaMinutes = getQuotaForUnit(unitRole, guildId);
 
-      for (const [memberId, member] of interaction.guild.members.cache) {
-        // Check if member has any of the unit role IDs
-        const hasUnitRole = unitRoleIds.some(roleId => member.roles.cache.has(roleId));
-
-        if (hasUnitRole && !userStats.has(memberId)) {
-          const totalMinutes = getTotalMinutesForUserInCycle(guildId, memberId, activeQuotaCycle.id);
-          const quotaMinutes = getQuotaForUnit(unitRole, guildId);
-
-          userStats.set(memberId, {
-            userId: memberId,
-            username: member.displayName,
-            unitRole: unitRole,
-            totalMinutes,
-            quotaMinutes,
-            quotaMet: totalMinutes >= quotaMinutes,
-            shifts: []
-          });
+                userStats.set(memberId, {
+                  userId: memberId,
+                  username: member.displayName,
+                  unitRole: unitRole,
+                  totalMinutes,
+                  quotaMinutes,
+                  quotaMet: totalMinutes >= quotaMinutes,
+                  shifts: []
+                });
+              }
+            }
+          }
         }
+      } catch (error) {
+        console.error('Error fetching role members:', error);
+        // Continue with just the users who have shifts
       }
     }
 

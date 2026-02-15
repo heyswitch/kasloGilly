@@ -91,7 +91,7 @@ module.exports = {
       details
     );
 
-    await logAuditAction(interaction.client, guildId, interaction.user.username, 'SET_QUOTA', details);
+    await logAuditAction(interaction.client, guildId, interaction.user.id, interaction.user.username, 'SET_QUOTA', details);
 
     return interaction.editReply(
       `✅ Quota for **${unitRole}** has been set to **${minutes} minutes**.\n\n` +

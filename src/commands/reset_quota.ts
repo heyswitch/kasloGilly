@@ -126,7 +126,7 @@ module.exports = {
         details
       );
 
-      await logAuditAction(interaction.client, guildId, interaction.user.username, 'RESET_QUOTA', details);
+      await logAuditAction(interaction.client, guildId, interaction.user.id, interaction.user.username, 'RESET_QUOTA', details);
 
       await confirmation.update({
         content: `✅ Successfully reset quota data!\n\n**Deleted:** ${deletedCount} shift record(s)`,

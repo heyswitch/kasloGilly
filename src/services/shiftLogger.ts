@@ -14,10 +14,20 @@ export async function logShiftStart(client: Client, guildId: string, shift: Shif
     const channel = await client.channels.fetch(channelId) as TextChannel;
     if (!channel) return;
 
+    // Get user's server nickname
+    let displayName = shift.username;
+    try {
+      const guild = await client.guilds.fetch(guildId);
+      const member = await guild.members.fetch(shift.userId);
+      displayName = member.displayName;
+    } catch {
+      // Fall back to username if member fetch fails
+    }
+
     const embed = new EmbedBuilder()
       .setTitle('🟢 Shift Started')
       .setColor('#00FF00')
-      .setDescription(`**${shift.username}** has started their shift`)
+      .setDescription(`**${displayName}** has started their shift`)
       .addFields(
         { name: 'Unit', value: shift.unitRole, inline: true },
         { name: 'Started At', value: formatTimestamp(shift.startTime), inline: true },
@@ -48,10 +58,20 @@ export async function logShiftEnd(client: Client, guildId: string, shift: Shift)
     const quotaMet = totalMinutes >= quotaMinutes;
     const cycleEnd = getNextQuotaCycleEnd(guildId);
 
+    // Get user's server nickname
+    let displayName = shift.username;
+    try {
+      const guild = await client.guilds.fetch(guildId);
+      const member = await guild.members.fetch(shift.userId);
+      displayName = member.displayName;
+    } catch {
+      // Fall back to username if member fetch fails
+    }
+
     const embed = new EmbedBuilder()
       .setTitle('🔴 Shift Ended')
       .setColor('#FF0000')
-      .setDescription(`**${shift.username}** has ended their shift`)
+      .setDescription(`**${displayName}** has ended their shift`)
       .addFields(
         { name: 'Unit', value: shift.unitRole, inline: true },
         { name: 'Started At', value: formatTimestamp(shift.startTime), inline: true },
@@ -74,6 +94,7 @@ export async function logShiftEnd(client: Client, guildId: string, shift: Shift)
 export async function logAuditAction(
   client: Client,
   guildId: string,
+  adminUserId: string,
   adminUsername: string,
   action: string,
   details: string
@@ -86,10 +107,20 @@ export async function logAuditAction(
     const channel = await client.channels.fetch(channelId) as TextChannel;
     if (!channel) return;
 
+    // Get admin's server nickname
+    let displayName = adminUsername;
+    try {
+      const guild = await client.guilds.fetch(guildId);
+      const member = await guild.members.fetch(adminUserId);
+      displayName = member.displayName;
+    } catch {
+      // Fall back to username if member fetch fails
+    }
+
     const embed = new EmbedBuilder()
       .setTitle('📋 Audit Log')
       .setColor('#FFA500')
-      .setDescription(`**${adminUsername}** performed: ${action}`)
+      .setDescription(`**${displayName}** performed: ${action}`)
       .addFields({ name: 'Details', value: details })
       .setTimestamp();
 

@@ -10,7 +10,10 @@ const ACTION_COLORS: Record<DepartmentActionType, ColorResolvable> = {
   DEMOTION: "#c27615",
   TRANSFER: "#EDD055",
   DISCHARGE: "#e019d0",
-  HIRE: "#6db0ff"
+  HIRE: "#6db0ff",
+  PROBATION: "#ff9800",
+  SUSPENSION: "#d32f2f",
+  ZTP: "#b71c1c"
 };
 
 function getActionTitle(guildId: string, actionType: DepartmentActionType): string {
@@ -95,6 +98,26 @@ function createDepartmentActionEmbed(action: DepartmentAction, departmentName: s
 
     case 'HIRE':
       description = `**${action.targetUsername}** has been **accepted** into the ${departmentName}.`;
+      break;
+
+    case 'PROBATION':
+      if (action.endDate) {
+        description = `**${action.targetUsername}** has been placed on **${actionTitle}** until ${formatTimestamp(action.endDate)}.`;
+      } else {
+        description = `**${action.targetUsername}** has been placed on **${actionTitle}**.`;
+      }
+      break;
+
+    case 'SUSPENSION':
+      if (action.endDate) {
+        description = `**${action.targetUsername}** has been **suspended** until ${formatTimestamp(action.endDate)}.`;
+      } else {
+        description = `**${action.targetUsername}** has been **suspended**.`;
+      }
+      break;
+
+    case 'ZTP':
+      description = `**${action.targetUsername}** has been issued a **${actionTitle}**.`;
       break;
   }
 

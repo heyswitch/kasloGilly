@@ -6,9 +6,9 @@ import { logLeaveRemoval } from '../services/departmentLogger';
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('remove_loa')
-    .setDescription('Remove a member from LOA or Administrative Leave')
+    .setDescription('Remove a member from LOA, Administrative Leave, Probation, Suspension, or ZTP')
     .addStringOption(option =>
-      option.setName('username').setDescription('The Roblox username to remove from leave').setRequired(true)
+      option.setName('username').setDescription('The Roblox username to remove from leave/status').setRequired(true)
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -47,7 +47,11 @@ module.exports = {
     await logLeaveRemoval(interaction.client, guildId, activeLeave, false);
 
     // Audit log
-    const leaveType = activeLeave.actionType === 'LOA' ? terms.loa : terms.adminLeave;
+    const leaveType = activeLeave.actionType === 'LOA' ? terms.loa :
+                     activeLeave.actionType === 'ADMIN_LEAVE' ? terms.adminLeave :
+                     activeLeave.actionType === 'PROBATION' ? terms.probation :
+                     activeLeave.actionType === 'SUSPENSION' ? terms.suspension :
+                     terms.ztp;
     addAuditLog(
       guildId,
       interaction.user.id,

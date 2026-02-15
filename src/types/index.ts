@@ -7,6 +7,9 @@ export interface Terminology {
   transfer: string;
   discharge: string;
   hire: string;
+  probation: string;
+  suspension: string;
+  ztp: string;
 }
 
 // Server-specific configuration
@@ -102,7 +105,10 @@ export type DepartmentActionType =
   | 'DEMOTION'
   | 'TRANSFER'
   | 'DISCHARGE'
-  | 'HIRE';
+  | 'HIRE'
+  | 'PROBATION'
+  | 'SUSPENSION'
+  | 'ZTP';
 
 export type DischargeType = 'HONORABLE' | 'RESIGNATION' | 'TERMINATION';
 

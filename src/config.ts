@@ -200,7 +200,10 @@ const DEFAULT_TERMINOLOGY: Terminology = {
   demotion: 'Demotion',
   transfer: 'Transfer',
   discharge: 'Discharge',
-  hire: 'New Hire'
+  hire: 'New Hire',
+  probation: 'Probation',
+  suspension: 'Suspension',
+  ztp: 'Zero Tolerance Policy'
 };
 
 export function getTerminology(guildId: string): Terminology {
@@ -220,7 +223,10 @@ export function getActionTerminology(guildId: string, actionType: DepartmentActi
     DEMOTION: terms.demotion,
     TRANSFER: terms.transfer,
     DISCHARGE: terms.discharge,
-    HIRE: terms.hire
+    HIRE: terms.hire,
+    PROBATION: terms.probation,
+    SUSPENSION: terms.suspension,
+    ZTP: terms.ztp
   };
   return mapping[actionType];
 }

@@ -71,7 +71,7 @@ module.exports = {
       details
     );
 
-    await logAuditAction(interaction.client, guildId, interaction.user.username, 'EDIT_SHIFT', details);
+    await logAuditAction(interaction.client, guildId, interaction.user.id, interaction.user.username, 'EDIT_SHIFT', details);
 
     return interaction.editReply(`✅ Successfully updated shift **${shiftCode}** to **${newMinutes} minutes**.\n\n**User:** ${shift.username}\n**Reason:** ${reason}`);
   },

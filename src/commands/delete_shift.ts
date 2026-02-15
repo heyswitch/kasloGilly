@@ -98,7 +98,7 @@ module.exports = {
         details
       );
 
-      await logAuditAction(interaction.client, guildId, interaction.user.username, 'DELETE_SHIFT', details);
+      await logAuditAction(interaction.client, guildId, interaction.user.id, interaction.user.username, 'DELETE_SHIFT', details);
 
       await confirmation.update({
         content: `✅ Successfully deleted shift **${shiftCode}**.\n\n**User:** ${shift.username}\n**Reason:** ${reason}`,

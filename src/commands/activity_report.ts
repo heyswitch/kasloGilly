@@ -101,73 +101,42 @@ module.exports = {
     // Group shifts by user
     const userStats = new Map<string, UserQuotaStats>();
 
-    // First, add users who have shifts
-    for (const shift of shifts) {
-      if (!userStats.has(shift.userId)) {
-        const totalMinutes = getTotalMinutesForUserInCycle(guildId, shift.userId, activeQuotaCycle.id);
-        const quotaMinutes = getQuotaForUnit(unitRole, guildId);
+    // Build a set of current role members for filtering
+    const currentRoleMembers = new Set<string>();
+    const unitRoleIds = config.unitRoles[unitRole];
+    if (unitRoleIds && interaction.guild) {
+      for (const roleId of unitRoleIds) {
+        const role = interaction.guild.roles.cache.get(roleId);
+        if (role) {
+          for (const [memberId, member] of role.members) {
+            currentRoleMembers.add(memberId);
 
-        // Get server nickname if available
-        let displayName = shift.username;
-        try {
-          // Try to get from cache first, fetch only if not cached
-          let guildMember = interaction.guild?.members.cache.get(shift.userId);
-          if (!guildMember && interaction.guild) {
-            try {
-              guildMember = await interaction.guild.members.fetch(shift.userId);
-            } catch {
-              // Member might have left the server
+            // Add all current members with the role (even if no shifts)
+            if (!userStats.has(memberId)) {
+              const totalMinutes = getTotalMinutesForUserInCycle(guildId, memberId, activeQuotaCycle.id);
+              const quotaMinutes = getQuotaForUnit(unitRole, guildId);
+
+              userStats.set(memberId, {
+                userId: memberId,
+                username: member.displayName,
+                unitRole: unitRole,
+                totalMinutes,
+                quotaMinutes,
+                quotaMet: totalMinutes >= quotaMinutes,
+                shifts: []
+              });
             }
           }
-          if (guildMember) {
-            displayName = guildMember.displayName;
-          }
-        } catch {
-          // Fall back to username if member fetch fails
         }
-
-        userStats.set(shift.userId, {
-          userId: shift.userId,
-          username: displayName,
-          unitRole: shift.unitRole,
-          totalMinutes,
-          quotaMinutes,
-          quotaMet: totalMinutes >= quotaMinutes,
-          shifts: []
-        });
       }
     }
 
-    // Then, add all members with this unit role (even if they have no shifts)
-    const unitRoleIds = config.unitRoles[unitRole];
-    if (unitRoleIds && interaction.guild) {
-      try {
-        // Fetch members with this specific role to avoid rate limits
-        // Note: This may not get everyone if the guild is very large
-        for (const roleId of unitRoleIds) {
-          const role = interaction.guild.roles.cache.get(roleId);
-          if (role) {
-            for (const [memberId, member] of role.members) {
-              if (!userStats.has(memberId)) {
-                const totalMinutes = getTotalMinutesForUserInCycle(guildId, memberId, activeQuotaCycle.id);
-                const quotaMinutes = getQuotaForUnit(unitRole, guildId);
-
-                userStats.set(memberId, {
-                  userId: memberId,
-                  username: member.displayName,
-                  unitRole: unitRole,
-                  totalMinutes,
-                  quotaMinutes,
-                  quotaMet: totalMinutes >= quotaMinutes,
-                  shifts: []
-                });
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching role members:', error);
-        // Continue with just the users who have shifts
+    // Update display names for users who have shifts AND currently have the role
+    for (const shift of shifts) {
+      // Only include users who currently have the role
+      if (currentRoleMembers.has(shift.userId) && userStats.has(shift.userId)) {
+        // Display name already set from role.members above
+        continue;
       }
     }
 

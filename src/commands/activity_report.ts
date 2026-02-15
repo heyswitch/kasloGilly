@@ -101,42 +101,48 @@ module.exports = {
     // Group shifts by user
     const userStats = new Map<string, UserQuotaStats>();
 
-    // Build a set of current role members for filtering
-    const currentRoleMembers = new Set<string>();
-    const unitRoleIds = config.unitRoles[unitRole];
-    if (unitRoleIds && interaction.guild) {
-      for (const roleId of unitRoleIds) {
-        const role = interaction.guild.roles.cache.get(roleId);
-        if (role) {
-          for (const [memberId, member] of role.members) {
-            currentRoleMembers.add(memberId);
+    // First, add users who have shifts
+    for (const shift of shifts) {
+      if (!userStats.has(shift.userId)) {
+        const totalMinutes = getTotalMinutesForUserInCycle(guildId, shift.userId, activeQuotaCycle.id);
+        const quotaMinutes = getQuotaForUnit(unitRole, guildId);
 
-            // Add all current members with the role (even if no shifts)
-            if (!userStats.has(memberId)) {
-              const totalMinutes = getTotalMinutesForUserInCycle(guildId, memberId, activeQuotaCycle.id);
-              const quotaMinutes = getQuotaForUnit(unitRole, guildId);
-
-              userStats.set(memberId, {
-                userId: memberId,
-                username: member.displayName,
-                unitRole: unitRole,
-                totalMinutes,
-                quotaMinutes,
-                quotaMet: totalMinutes >= quotaMinutes,
-                shifts: []
-              });
-            }
-          }
-        }
+        userStats.set(shift.userId, {
+          userId: shift.userId,
+          username: shift.username,
+          unitRole: shift.unitRole,
+          totalMinutes,
+          quotaMinutes,
+          quotaMet: totalMinutes >= quotaMinutes,
+          shifts: []
+        });
       }
     }
 
-    // Update display names for users who have shifts AND currently have the role
-    for (const shift of shifts) {
-      // Only include users who currently have the role
-      if (currentRoleMembers.has(shift.userId) && userStats.has(shift.userId)) {
-        // Display name already set from role.members above
-        continue;
+    // Then, add all members with this unit role (even if they have no shifts)
+    const unitRoleIds = config.unitRoles[unitRole];
+    if (unitRoleIds && interaction.guild) {
+      // Fetch all members to ensure we have the complete list
+      await interaction.guild.members.fetch();
+
+      for (const [memberId, member] of interaction.guild.members.cache) {
+        // Check if member has any of the unit role IDs
+        const hasUnitRole = unitRoleIds.some(roleId => member.roles.cache.has(roleId));
+
+        if (hasUnitRole && !userStats.has(memberId)) {
+          const totalMinutes = getTotalMinutesForUserInCycle(guildId, memberId, activeQuotaCycle.id);
+          const quotaMinutes = getQuotaForUnit(unitRole, guildId);
+
+          userStats.set(memberId, {
+            userId: memberId,
+            username: member.user.username,
+            unitRole: unitRole,
+            totalMinutes,
+            quotaMinutes,
+            quotaMet: totalMinutes >= quotaMinutes,
+            shifts: []
+          });
+        }
       }
     }
 

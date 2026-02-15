@@ -541,7 +541,7 @@ export function getActiveLeaveForUser(
   const row = db.prepare(`
     SELECT * FROM department_actions
     WHERE target_user_id = ?
-    AND action_type IN ('LOA', 'ADMIN_LEAVE')
+    AND action_type IN ('LOA', 'ADMIN_LEAVE', 'PROBATION', 'SUSPENSION', 'ZTP')
     AND is_active = 1
     LIMIT 1
   `).get(userId) as any;
@@ -554,7 +554,7 @@ export function getAllActiveLeaves(guildId: string): DepartmentAction[] {
   const db = getDatabase(guildId);
   const rows = db.prepare(`
     SELECT * FROM department_actions
-    WHERE action_type IN ('LOA', 'ADMIN_LEAVE')
+    WHERE action_type IN ('LOA', 'ADMIN_LEAVE', 'PROBATION', 'SUSPENSION', 'ZTP')
     AND is_active = 1
     ORDER BY created_at DESC
   `).all() as any[];
@@ -567,7 +567,7 @@ export function getExpiredLOAs(guildId: string): DepartmentAction[] {
   const now = Date.now();
   const rows = db.prepare(`
     SELECT * FROM department_actions
-    WHERE action_type = 'LOA'
+    WHERE action_type IN ('LOA', 'PROBATION', 'SUSPENSION', 'ZTP')
     AND is_active = 1
     AND end_date IS NOT NULL
     AND end_date <= ?

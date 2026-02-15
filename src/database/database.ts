@@ -485,7 +485,7 @@ export function createDepartmentAction(
 ): DepartmentAction {
   const db = getDatabase(guildId);
   const createdAt = Date.now();
-  const isActive = action.actionType === 'LOA' || action.actionType === 'ADMIN_LEAVE' ? 1 : 0;
+  const isActive = ['LOA', 'ADMIN_LEAVE', 'PROBATION', 'SUSPENSION', 'ZTP'].includes(action.actionType) ? 1 : 0;
 
   const result = db.prepare(`
     INSERT INTO department_actions (

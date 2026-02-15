@@ -65,24 +65,24 @@
     ]
   },
   "quotas": {
-    "defaultMinutes": 60,
+    "defaultMinutes": 30,
     "unitQuotas": {
-      "Public Transportation Division": 60,
-      "Bus Fleet A": 60,
-      "Bus Fleet B": 60,
-      "Bus Fleet C": 60,
-      "Travel Safety Division": 60,
-      "Safety Unit A": 60,
-      "Safety Unit B": 60,
-      "Incident Response Unit": 60,
-      "Road Maintenance Division": 60,
-      "Maintenance Unit A": 60,
-      "Maintenance Unit B": 60,
-      "Transportation Academy Division": 60,
-      "Training and Development Unit": 60,
-      "Administrative Services": 60,
-      "Professional Standards Unit": 60,
-      "Public Information Unit": 60
+      "Public Transportation Division": 30,
+      "Bus Fleet A": 30,
+      "Bus Fleet B": 30,
+      "Bus Fleet C": 30,
+      "Travel Safety Division": 30,
+      "Safety Unit A": 30,
+      "Safety Unit B": 30,
+      "Incident Response Unit": 30,
+      "Road Maintenance Division": 30,
+      "Maintenance Unit A": 30,
+      "Maintenance Unit B": 30,
+      "Transportation Academy Division": 30,
+      "Training and Development Unit": 30,
+      "Administrative Services": 30,
+      "Professional Standards Unit": 30,
+      "Public Information Unit": 30
     }
   },
   "quotaCycle": {

@@ -25,6 +25,7 @@
     "Fox Squad": ["1130182932636631162"],
     "Reserves Unit": ["1130182267004788862"],
     "Training Unit": ["1130182317340639393"],
+    "Standards Division": ["1130181789814628452"],
     "Investigations Unit": ["1130182630617383115"],
     "Public Information Unit": ["1130182573247705158"]
   },
@@ -38,7 +39,8 @@
       "Fox Squad": 120,
       "Reserves Unit": 60,
       "Training Unit": 60,
-      "Investigations Unit": 90,
+      "Standards Division": "60",
+      "Investigations Unit": 60,
       "Public Information Unit": 60
     }
   },

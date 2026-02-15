@@ -46,8 +46,19 @@ module.exports = {
     // Get all shifts for the user in the current cycle
     const shifts = getUserShiftsInCycle(guildId, targetUser.id, activeQuotaCycle.id);
 
+    // Get server nickname
+    let displayName = targetUser.username;
+    try {
+      const targetMember = await interaction.guild?.members.fetch(targetUser.id);
+      if (targetMember) {
+        displayName = targetMember.displayName;
+      }
+    } catch {
+      // Fall back to username if member fetch fails
+    }
+
     if (shifts.length === 0) {
-      return interaction.editReply(`📊 **${targetUser.username}** has no recorded shifts in the current activity cycle.`);
+      return interaction.editReply(`📊 **${displayName}** has no recorded shifts in the current activity cycle.`);
     }
 
     // Calculate total minutes
@@ -59,7 +70,7 @@ module.exports = {
 
     // Create embed
     const embed = new EmbedBuilder()
-      .setTitle(`📊 Activity Report: ${targetUser.username}`)
+      .setTitle(`📊 Activity Report: ${displayName}`)
       .setColor(quotaMet ? '#00FF00' : '#FF0000')
       .setDescription(`**Unit:** ${unitRole}\n**Quota Status:** ${quotaMet ? '✅ Met' : '❌ Not Met'}`)
       .addFields(

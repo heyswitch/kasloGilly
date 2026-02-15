@@ -101,15 +101,29 @@ module.exports = {
     // Group shifts by user
     const userStats = new Map<string, UserQuotaStats>();
 
+    // Fetch all members to get displayNames
+    await interaction.guild?.members.fetch();
+
     // First, add users who have shifts
     for (const shift of shifts) {
       if (!userStats.has(shift.userId)) {
         const totalMinutes = getTotalMinutesForUserInCycle(guildId, shift.userId, activeQuotaCycle.id);
         const quotaMinutes = getQuotaForUnit(unitRole, guildId);
 
+        // Get server nickname if available
+        let displayName = shift.username;
+        try {
+          const guildMember = interaction.guild?.members.cache.get(shift.userId);
+          if (guildMember) {
+            displayName = guildMember.displayName;
+          }
+        } catch {
+          // Fall back to username if member fetch fails
+        }
+
         userStats.set(shift.userId, {
           userId: shift.userId,
-          username: shift.username,
+          username: displayName,
           unitRole: shift.unitRole,
           totalMinutes,
           quotaMinutes,
@@ -135,7 +149,7 @@ module.exports = {
 
           userStats.set(memberId, {
             userId: memberId,
-            username: member.user.username,
+            username: member.displayName,
             unitRole: unitRole,
             totalMinutes,
             quotaMinutes,

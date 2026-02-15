@@ -203,7 +203,8 @@ const DEFAULT_TERMINOLOGY: Terminology = {
   hire: 'New Hire',
   probation: 'Probation',
   suspension: 'Suspension',
-  ztp: 'Zero Tolerance Policy'
+  ztp: 'Zero Tolerance Policy',
+  warning: 'Warning'
 };
 
 export function getTerminology(guildId: string): Terminology {
@@ -226,7 +227,8 @@ export function getActionTerminology(guildId: string, actionType: DepartmentActi
     HIRE: terms.hire,
     PROBATION: terms.probation,
     SUSPENSION: terms.suspension,
-    ZTP: terms.ztp
+    ZTP: terms.ztp,
+    WARNING: terms.warning
   };
   return mapping[actionType];
 }

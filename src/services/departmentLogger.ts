@@ -13,7 +13,8 @@ const ACTION_COLORS: Record<DepartmentActionType, ColorResolvable> = {
   HIRE: "#6db0ff",
   PROBATION: "#ff9800",
   SUSPENSION: "#d32f2f",
-  ZTP: "#b71c1c"
+  ZTP: "#b71c1c",
+  WARNING: "#ffeb3b"
 };
 
 function getActionTitle(guildId: string, actionType: DepartmentActionType): string {
@@ -117,6 +118,14 @@ function createDepartmentActionEmbed(action: DepartmentAction, departmentName: s
       break;
 
     case 'ZTP':
+      if (action.endDate) {
+        description = `**${action.targetUsername}** has been issued a **${actionTitle}** until ${formatTimestamp(action.endDate)}.`;
+      } else {
+        description = `**${action.targetUsername}** has been issued a **${actionTitle}**.`;
+      }
+      break;
+
+    case 'WARNING':
       description = `**${action.targetUsername}** has been issued a **${actionTitle}**.`;
       break;
   }

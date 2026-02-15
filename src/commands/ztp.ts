@@ -8,14 +8,64 @@ import {
 } from '../database/database';
 import { logDepartmentAction } from '../services/departmentLogger';
 
+function parseEndDate(input: string): Date | null {
+  // Try MM/DD/YYYY format
+  const slashMatch = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const month = parseInt(slashMatch[1]) - 1;
+    const day = parseInt(slashMatch[2]);
+    const year = parseInt(slashMatch[3]);
+    const date = new Date(year, month, day, 23, 59, 59);
+    if (!isNaN(date.getTime())) return date;
+  }
+
+  // Try YYYY-MM-DD format
+  const isoMatch = input.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const date = new Date(input + 'T23:59:59');
+    if (!isNaN(date.getTime())) return date;
+  }
+
+  // Try relative formats ("2 weeks", "1 month", "3 days", etc.)
+  const relativeMatch = input.match(/^(\d+)\s*(day|week|month)s?$/i);
+  if (relativeMatch) {
+    const amount = parseInt(relativeMatch[1]);
+    const unit = relativeMatch[2].toLowerCase();
+    const date = new Date();
+    date.setHours(23, 59, 59, 0);
+
+    switch (unit) {
+      case 'day':
+        date.setDate(date.getDate() + amount);
+        break;
+      case 'week':
+        date.setDate(date.getDate() + amount * 7);
+        break;
+      case 'month':
+        date.setMonth(date.getMonth() + amount);
+        break;
+    }
+
+    return date;
+  }
+
+  return null;
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('ztp')
-    .setDescription('Issue a Zero Tolerance Policy action to a member (indefinite)')
+    .setDescription('Issue a Zero Tolerance Policy action to a member')
     .addStringOption(option =>
       option
         .setName('username')
         .setDescription('The Roblox username to issue ZTP to')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option
+        .setName('end_date')
+        .setDescription('When the ZTP ends (MM/DD/YYYY, YYYY-MM-DD, or "2 weeks")')
         .setRequired(true)
     )
     .addStringOption(option =>
@@ -45,8 +95,22 @@ module.exports = {
     }
 
     const username = interaction.options.getString('username', true);
+    const endDateStr = interaction.options.getString('end_date', true);
     const notes = interaction.options.getString('notes');
     const targetUserId = `roblox_${username.toLowerCase()}`;
+
+    // Parse end date
+    const endDate = parseEndDate(endDateStr);
+    if (!endDate) {
+      return interaction.editReply(
+        'Invalid date format. Use MM/DD/YYYY, YYYY-MM-DD, or relative like "2 weeks".'
+      );
+    }
+
+    // Check if date is in the past
+    if (endDate.getTime() < Date.now()) {
+      return interaction.editReply('The end date cannot be in the past.');
+    }
 
     // Check if user already has active leave
     const existingLeave = getActiveLeaveForUser(guildId, targetUserId);
@@ -68,7 +132,8 @@ module.exports = {
       targetUsername: username,
       adminUserId: interaction.user.id,
       adminUsername: interaction.user.username,
-      notes: notes || undefined
+      notes: notes || undefined,
+      endDate: endDate.getTime()
     });
 
     // Log to channel
@@ -84,11 +149,11 @@ module.exports = {
       interaction.user.username,
       'ZTP_CREATE',
       targetUserId,
-      `Issued ${terms.ztp} to ${username}`
+      `Issued ${terms.ztp} to ${username} until ${endDate.toLocaleDateString()}`
     );
 
     return interaction.editReply(
-      `Successfully issued **${terms.ztp}** to **${username}**.`
+      `Successfully issued **${terms.ztp}** to **${username}** until <t:${Math.floor(endDate.getTime() / 1000)}:D>.`
     );
   }
 };
